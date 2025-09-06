@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-electron/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+*.iml
+coverage/
+test-results/
+playwright-report/

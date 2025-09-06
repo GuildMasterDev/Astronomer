@@ -1,0 +1,69 @@
+{
+  "name": "astronomer",
+  "version": "1.0.0",
+  "description": "A desktop astronomy app for exploring space data and planning observations",
+  "main": "dist/main/main.js",
+  "author": "Astronomer Team",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev-simple.mjs",
+    "dev:vite": "node scripts/dev.mjs",
+    "build": "tsc && vite build",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "eslint . --ext .ts,.js",
+    "typecheck": "tsc --noEmit",
+    "pack:mac": "npm run build && electron-builder --mac",
+    "pack:win": "npm run build && electron-builder --win",
+    "pack:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.19",
+    "dayjs": "^1.11.10",
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.0",
+    "node-fetch": "^3.3.2",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "vitest": "^1.1.0"
+  },
+  "build": {
+    "appId": "com.astronomer.app",
+    "productName": "Astronomer",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "!node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.education",
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Education"
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

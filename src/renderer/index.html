@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;">
+  <title>Astronomer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <nav class="tab-navigation" role="navigation">
+        <button class="tab-button active" data-tab="explore" aria-label="Explore">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+          <span>Explore</span>
+        </button>
+        <button class="tab-button" data-tab="birthday" aria-label="Hubble Birthday">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/>
+          </svg>
+          <span>Birthday</span>
+        </button>
+        <button class="tab-button" data-tab="observe" aria-label="Observe Tonight">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+          </svg>
+          <span>Observe</span>
+        </button>
+        <button class="tab-button" data-tab="objects" aria-label="Objects">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>Objects</span>
+        </button>
+        <button class="tab-button" data-tab="favorites" aria-label="Favorites">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+          </svg>
+          <span>Favorites</span>
+        </button>
+        <button class="tab-button" data-tab="settings" aria-label="Settings">
+          <svg class="tab-icon" viewBox="0 0 24 24">
+            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+          </svg>
+          <span>Settings</span>
+        </button>
+      </nav>
+      <div class="header-actions">
+        <button class="search-button" aria-label="Search" title="Search (Cmd/Ctrl+F)">
+          <svg viewBox="0 0 24 24">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+        </button>
+        <button class="theme-toggle" aria-label="Toggle theme">
+          <svg class="theme-icon-light" viewBox="0 0 24 24">
+            <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
+          </svg>
+          <svg class="theme-icon-dark" viewBox="0 0 24 24">
+            <path d="M9 2c-1.05 0-2.05.16-3 .46 4.06 1.27 7 5.06 7 9.54 0 4.48-2.94 8.27-7 9.54.95.3 1.95.46 3 .46 5.52 0 10-4.48 10-10S14.52 2 9 2z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <div class="tab-content active" id="explore-tab">
+        <div class="explore-container">
+          <div class="explore-header">
+            <h1>Explore the Universe</h1>
+            <p>Discover amazing space imagery and data from NASA and other sources</p>
+          </div>
+          
+          <div class="explore-sections">
+            <section class="explore-section apod-section">
+              <h2>Astronomy Picture of the Day</h2>
+              <div class="apod-controls">
+                <button class="btn btn-primary" id="apod-today">Today</button>
+                <button class="btn btn-secondary" id="apod-random">Random</button>
+                <input type="date" id="apod-date" class="date-input">
+              </div>
+              <div class="apod-content" id="apod-content">
+                <div class="loading-spinner">Loading...</div>
+              </div>
+            </section>
+
+            <section class="explore-section nasa-images-section">
+              <h2>NASA Image & Video Library</h2>
+              <div class="search-controls">
+                <input type="text" id="nasa-search" placeholder="Search for images..." class="search-input">
+                <select id="nasa-media-type" class="media-select">
+                  <option value="">All Media</option>
+                  <option value="image">Images</option>
+                  <option value="video">Videos</option>
+                </select>
+                <button class="btn btn-primary" id="nasa-search-btn">Search</button>
+              </div>
+              <div class="nasa-images-grid" id="nasa-images-grid"></div>
+            </section>
+
+            <section class="explore-section epic-section">
+              <h2>EPIC Earth Images</h2>
+              <div class="epic-controls">
+                <input type="date" id="epic-date" class="date-input">
+                <button class="btn btn-primary" id="epic-fetch">Get Images</button>
+              </div>
+              <div class="epic-images" id="epic-images"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="birthday-tab">
+        <div class="birthday-container">
+          <h1>Hubble on Your Birthday</h1>
+          <p>What did Hubble see on your birthday?</p>
+          <div class="birthday-form">
+            <select id="birthday-month" class="month-select">
+              <option value="">Month</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <select id="birthday-day" class="day-select">
+              <option value="">Day</option>
+            </select>
+            <button class="btn btn-primary" id="birthday-search">Find Hubble Images</button>
+          </div>
+          <div class="birthday-results" id="birthday-results"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="observe-tab">
+        <div class="observe-container">
+          <h1>Observe Tonight</h1>
+          <div class="location-picker">
+            <button class="btn btn-secondary" id="use-location">Use My Location</button>
+            <input type="text" id="location-name" placeholder="Location name">
+            <input type="number" id="latitude" placeholder="Latitude" step="0.0001">
+            <input type="number" id="longitude" placeholder="Longitude" step="0.0001">
+          </div>
+          <div class="observation-data" id="observation-data"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="objects-tab">
+        <div class="objects-container">
+          <h1>Solar System & Exoplanets</h1>
+          <div class="objects-grid" id="objects-grid"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="favorites-tab">
+        <div class="favorites-container">
+          <h1>Your Favorites</h1>
+          <div class="favorites-actions">
+            <button class="btn btn-primary" id="export-favorites">Export All</button>
+            <button class="btn btn-secondary" id="clear-favorites">Clear All</button>
+          </div>
+          <div class="favorites-grid" id="favorites-grid"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="settings-tab">
+        <div class="settings-container">
+          <h1>Settings</h1>
+          <div class="settings-section">
+            <h2>API Configuration</h2>
+            <div class="setting-item">
+              <label for="nasa-api-key">NASA API Key</label>
+              <input type="text" id="nasa-api-key" placeholder="DEMO_KEY">
+              <small>Get your free API key at <a href="#" id="nasa-api-link">api.nasa.gov</a></small>
+            </div>
+          </div>
+          
+          <div class="settings-section">
+            <h2>Display</h2>
+            <div class="setting-item">
+              <label for="theme-select">Theme</label>
+              <select id="theme-select">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label for="units-select">Units</label>
+              <select id="units-select">
+                <option value="metric">Metric (km)</option>
+                <option value="imperial">Imperial (mi)</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label>
+                <input type="checkbox" id="reduce-motion">
+                Reduce motion
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Location</h2>
+            <div class="setting-item">
+              <label for="default-location">Default Location</label>
+              <input type="text" id="default-location-name" placeholder="Denver, CO">
+              <div class="location-coords">
+                <input type="number" id="default-latitude" placeholder="39.7392" step="0.0001">
+                <input type="number" id="default-longitude" placeholder="-104.9903" step="0.0001">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2>Performance</h2>
+            <div class="setting-item">
+              <label>
+                <input type="checkbox" id="safe-mode">
+                Safe mode (throttle requests)
+              </label>
+            </div>
+            <button class="btn btn-secondary" id="clear-cache">Clear Cache</button>
+          </div>
+
+          <button class="btn btn-primary" id="save-settings">Save Settings</button>
+        </div>
+      </div>
+    </main>
+
+    <div class="modal" id="modal" aria-hidden="true">
+      <div class="modal-content">
+        <button class="modal-close" aria-label="Close">&times;</button>
+        <div class="modal-body" id="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app-complete.js"></script>
+</body>
+</html>

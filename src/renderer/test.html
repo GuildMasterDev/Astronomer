@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Astronomer Test</title>
+  <style>
+    body {
+      font-family: system-ui;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #e8e8e8;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background: #4a69bd;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 20px;
+      background: #0a0a0f;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Astronomer API Test</h1>
+  
+  <button onclick="testAPI()">Test NASA APOD API</button>
+  <button onclick="testStore()">Test Store</button>
+  <button onclick="checkPreload()">Check Preload</button>
+  
+  <div id="output">Click a button to test...</div>
+
+  <script>
+    function log(message) {
+      const output = document.getElementById('output');
+      output.textContent += message + '\n';
+      console.log(message);
+    }
+
+    function checkPreload() {
+      log('Checking preload...');
+      if (typeof window.astronomer !== 'undefined') {
+        log('✅ window.astronomer is available!');
+        log('Available methods:');
+        for (const key in window.astronomer) {
+          log(`  - astronomer.${key}: ${typeof window.astronomer[key]}`);
+          if (typeof window.astronomer[key] === 'object') {
+            for (const subkey in window.astronomer[key]) {
+              log(`    - ${key}.${subkey}: ${typeof window.astronomer[key][subkey]}`);
+            }
+          }
+        }
+      } else {
+        log('❌ window.astronomer is NOT available');
+        log('Available on window:');
+        for (const key in window) {
+          if (!key.match(/^(webkit|document|location|history|navigator|screen|window)/)) {
+            log(`  - window.${key}`);
+          }
+        }
+      }
+    }
+
+    async function testAPI() {
+      log('\n📡 Testing NASA APOD API...');
+      
+      if (!window.astronomer) {
+        log('❌ Error: window.astronomer not available');
+        return;
+      }
+
+      try {
+        const result = await window.astronomer.api.fetch('apod', {
+          api_key: 'DEMO_KEY'
+        });
+        
+        if (result) {
+          log('✅ API call successful!');
+          log(JSON.stringify(result, null, 2));
+        } else {
+          log('❌ API returned no data');
+        }
+      } catch (error) {
+        log('❌ Error: ' + error.message);
+      }
+    }
+
+    async function testStore() {
+      log('\n💾 Testing Store...');
+      
+      if (!window.astronomer) {
+        log('❌ Error: window.astronomer not available');
+        return;
+      }
+
+      try {
+        await window.astronomer.store.set('test', { value: 'Hello from renderer!' });
+        log('✅ Set test value');
+        
+        const value = await window.astronomer.store.get('test');
+        log('✅ Retrieved value: ' + JSON.stringify(value));
+      } catch (error) {
+        log('❌ Error: ' + error.message);
+      }
+    }
+
+    // Check immediately on load
+    window.addEventListener('DOMContentLoaded', () => {
+      log('Page loaded. Checking environment...');
+      checkPreload();
+    });
+  </script>
+</body>
+</html>
