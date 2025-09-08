@@ -40,7 +40,7 @@
     "vitest": "^1.1.0"
   },
   "build": {
-    "appId": "com.astronomer.app",
+    "appId": "me.davidcanhelp.astronomer",
     "productName": "Astronomer",
     "directories": {
       "output": "dist-electron"
