@@ -60,7 +60,10 @@ export class SettingsView {
     // API Key
     const apiKeyInput = document.getElementById('nasa-api-key');
     if (apiKeyInput) {
-      apiKeyInput.value = this.settings.apiKeys?.nasa || 'DEMO_KEY';
+      const currentKey = this.settings.apiKeys?.nasa || '';
+      // Don't pre-fill with DEMO_KEY, use it only as placeholder
+      apiKeyInput.value = currentKey === 'DEMO_KEY' ? '' : currentKey;
+      apiKeyInput.placeholder = 'Enter your NASA API key or leave blank for DEMO_KEY';
     }
 
     // Theme
@@ -103,7 +106,16 @@ export class SettingsView {
   async saveSettings() {
     try {
       // Gather all settings
-      const apiKey = document.getElementById('nasa-api-key')?.value || 'DEMO_KEY';
+      const apiKeyInput = document.getElementById('nasa-api-key')?.value || '';
+      // Trim whitespace and default to DEMO_KEY if empty
+      const apiKey = apiKeyInput.trim() || 'DEMO_KEY';
+
+      // Warn if still using DEMO_KEY
+      if (apiKey === 'DEMO_KEY') {
+        const proceed = confirm('You are using DEMO_KEY which has strict rate limits and may cause 403 errors. Get a free API key at https://api.nasa.gov/\n\nContinue with DEMO_KEY?');
+        if (!proceed) return;
+      }
+
       const theme = document.getElementById('theme-select')?.value || 'dark';
       const units = document.getElementById('units-select')?.value || 'metric';
       const reduceMotion = document.getElementById('reduce-motion')?.checked || false;

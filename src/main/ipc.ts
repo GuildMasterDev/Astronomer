@@ -43,8 +43,17 @@ ipcMain.handle('api-fetch', async (event, endpointId: string, params: any) => {
           resolve({ data: null, error: 'RATE_LIMITED', statusCode: 429 });
           return;
         }
+        if (response.statusCode === 403) {
+          // Forbidden - likely API key issue
+          resolve({
+            data: null,
+            error: `HTTP 403 Forbidden - This is usually caused by an invalid or missing API key. Please check your NASA API key in Settings. Get a free key at https://api.nasa.gov/`,
+            statusCode: 403
+          });
+          return;
+        }
         if (response.statusCode !== 200) {
-          resolve({ data: null, error: `HTTP ${response.statusCode}: ${response.statusMessage}` });
+          resolve({ data: null, error: `HTTP ${response.statusCode}: ${response.statusMessage}`, statusCode: response.statusCode });
           return;
         }
         
