@@ -5,6 +5,7 @@ import * as path from 'path';
 import { getEndpointConfig } from './endpoints';
 import { rateLimiter } from './rate-limiter';
 import { computeObservation } from './astronomy';
+import { computeIssData } from './iss';
 
 // API fetch handler
 ipcMain.handle('api-fetch', async (event, endpointId: string, params: any) => {
@@ -178,6 +179,17 @@ ipcMain.handle('astronomy-compute', async (_event, location: { latitude: number;
   } catch (error: any) {
     console.error('astronomy-compute error:', error);
     return { data: null, error: error?.message || 'Astronomy compute failed' };
+  }
+});
+
+// ISS passes handler
+ipcMain.handle('iss-passes', async (_event, location: { latitude: number; longitude: number }, isoDate?: string) => {
+  try {
+    const date = isoDate ? new Date(isoDate) : new Date();
+    return { data: await computeIssData(location, date), error: null };
+  } catch (error: any) {
+    console.error('iss-passes error:', error);
+    return { data: null, error: error?.message || 'ISS pass computation failed' };
   }
 });
 

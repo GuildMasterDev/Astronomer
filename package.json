@@ -22,7 +22,8 @@
     "astronomy-engine": "^2.1.19",
     "dayjs": "^1.11.10",
     "electron-store": "^8.1.0",
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "satellite.js": "^5.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.1",

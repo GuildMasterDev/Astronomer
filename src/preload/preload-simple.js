@@ -52,6 +52,14 @@ contextBridge.exposeInMainWorld('astronomer', {
     )
   },
 
+  iss: {
+    passes: (location, date) => ipcRenderer.invoke(
+      'iss-passes',
+      location,
+      date instanceof Date ? date.toISOString() : date
+    )
+  },
+
   system: {
     getLocation: () => ipcRenderer.invoke('get-location'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),

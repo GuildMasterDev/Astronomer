@@ -40,6 +40,13 @@ export const ENDPOINTS: Record<string, EndpointConfig> = {
     rateLimit: 10,
     ttl: 10 * 1000
   },
+
+  'iss-tle': {
+    url: 'https://tle.ivanstanojevic.me/api/tle/25544',
+    method: 'GET',
+    rateLimit: 10,
+    ttl: 60 * 60 * 1000
+  },
   
   'exoplanets': {
     url: 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync',

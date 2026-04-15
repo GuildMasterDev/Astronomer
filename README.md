@@ -184,11 +184,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - ✅ HTTP 429 rate limiting now handled with exponential backoff
 - ✅ Geolocation permissions properly configured
 - ✅ Module loading issues resolved
-
-### Known Issues
-- Moon rise/set calculations are simplified placeholders
-- Planet visibility uses basic approximations
-- ISS pass predictions need refinement
+- ✅ Moon rise/set, sun/twilight, and planet positions now use `astronomy-engine` (real topocentric calculations)
+- ✅ ISS pass predictions use live TLE data + SGP4 propagation via `satellite.js`
 
 ## 📮 Support
 

@@ -120,7 +120,7 @@
         document.body.classList.toggle('night-vision', !!on);
         toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
         // Redraw the sky chart so canvas colors match the new mode.
-        if (this.lastSkyData) this.renderSkyChart(this.lastSkyData);
+        if (this.lastSkyData) this.renderSkyChart(this.lastSkyData, this.lastIssData);
       };
 
       try {
@@ -517,13 +517,11 @@
         const location = await this.getLocation();
         const now = new Date();
 
-        const [astroResult, issData] = await Promise.all([
-          window.astronomer.astronomy.compute(
-            { latitude: location.latitude, longitude: location.longitude },
-            now
-          ),
-          window.astronomer.api.fetch('iss-position', {}).catch(e => {
-            console.error('ISS fetch failed:', e);
+        const observer = { latitude: location.latitude, longitude: location.longitude };
+        const [astroResult, issResult] = await Promise.all([
+          window.astronomer.astronomy.compute(observer, now),
+          window.astronomer.iss.passes(observer, now).catch(e => {
+            console.error('ISS pass computation failed:', e);
             return null;
           })
         ]);
@@ -532,7 +530,8 @@
           throw new Error(astroResult?.error || 'No astronomy data');
         }
         const astro = astroResult.data;
-        this.renderSkyChart(astro);
+        const iss = issResult && !issResult.error ? issResult.data : null;
+        this.renderSkyChart(astro, iss);
 
         const fmtTime = iso =>
           iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -588,13 +587,25 @@
               ${planetsHtml}
             </section>
 
-            ${issData ? `
+            ${iss ? `
               <section class="obs-section">
-                <h3>ISS Current Position</h3>
-                <p>Latitude: ${issData.latitude.toFixed(2)}°</p>
-                <p>Longitude: ${issData.longitude.toFixed(2)}°</p>
-                <p>Altitude: ${issData.altitude.toFixed(0)} km</p>
-                <p>Velocity: ${issData.velocity.toFixed(0)} km/h</p>
+                <h3>International Space Station</h3>
+                ${iss.current && Number.isFinite(iss.current.latitude) ? `
+                  <p>Sub-satellite point: ${iss.current.latitude.toFixed(2)}°, ${iss.current.longitude.toFixed(2)}° · ${fmtNum(iss.current.altitudeKm, 0)} km up</p>
+                  ${typeof iss.current.observerAltitude === 'number' && iss.current.observerAltitude > 0
+                    ? `<p><strong>Overhead now</strong> — alt ${fmtNum(iss.current.observerAltitude)}°, az ${fmtNum(iss.current.observerAzimuth)}°</p>`
+                    : '<p>Currently below your horizon.</p>'}
+                ` : ''}
+                <h4>Next visible passes (next 48h)</h4>
+                ${iss.passes.length === 0
+                  ? '<p>No visible passes in the next 48 hours at this location.</p>'
+                  : `<ul class="iss-pass-list">${iss.passes.map(p => `
+                      <li>
+                        <strong>${fmtTime(p.start)}</strong> — ${Math.round(p.durationSec / 60)} min
+                        · peak ${fmtNum(p.maxElevation)}° ${p.direction}
+                        <br><small>Start ${fmtTime(p.start)} · Peak ${fmtTime(p.maxElevationAt)} · End ${fmtTime(p.end)}</small>
+                      </li>
+                    `).join('')}</ul>`}
               </section>
             ` : ''}
           </div>
@@ -736,10 +747,11 @@
       if (pan) this.observeMap.panTo(latlng);
     }
 
-    renderSkyChart(astro) {
+    renderSkyChart(astro, iss = null) {
       const canvas = document.getElementById('sky-chart');
       if (!canvas || !astro) return;
       this.lastSkyData = astro;
+      this.lastIssData = iss;
 
       const ctx = canvas.getContext('2d');
       const w = canvas.width;
@@ -827,6 +839,19 @@
         }))
       ];
 
+      // Add ISS if we have a live observer-relative fix above the horizon.
+      if (iss && iss.current && typeof iss.current.observerAltitude === 'number') {
+        baseBodies.push({
+          name: 'ISS',
+          color: '#5ad2ff',
+          radius: 5,
+          data: {
+            altitude: iss.current.observerAltitude,
+            azimuth: iss.current.observerAzimuth
+          }
+        });
+      }
+
       const tintForNight = (hex) => {
         if (!night) return hex;
         // Map any planet color to a red-tone equivalent preserving brightness.
@@ -842,6 +867,8 @@
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
 
+      // First pass: draw dots and collect label placements.
+      const placements = [];
       for (const body of baseBodies) {
         const d = body.data;
         if (!d || typeof d.altitude !== 'number' || typeof d.azimuth !== 'number') continue;
@@ -852,8 +879,6 @@
 
         ctx.save();
         ctx.globalAlpha = aboveHorizon ? 1 : 0.35;
-
-        // Dot with outline for contrast.
         ctx.fillStyle = color;
         ctx.strokeStyle = colors.outline;
         ctx.lineWidth = 1.5;
@@ -862,21 +887,68 @@
         ctx.fill();
         ctx.stroke();
 
-        // Moon phase: chord across the disk on the dark side.
         if (body.name === 'Moon' && typeof astro.moon.phaseAngle === 'number') {
-          const phase = astro.moon.phaseAngle; // 0=new, 180=full
-          const lit = 1 - Math.abs(((phase + 180) % 360) - 180) / 180; // 0..1 illuminated fraction roughly
+          const phase = astro.moon.phaseAngle;
+          const lit = 1 - Math.abs(((phase + 180) % 360) - 180) / 180;
           ctx.fillStyle = night ? 'rgba(60, 0, 0, 0.85)' : 'rgba(20, 24, 40, 0.85)';
           ctx.beginPath();
-          // Simple visual: cover the un-lit portion with a vertical-ish arc.
           const coverWidth = body.radius * (1 - lit) * 1.6;
           ctx.ellipse(x, y, coverWidth / 2, body.radius, 0, 0, Math.PI * 2);
           ctx.fill();
         }
+        ctx.restore();
 
-        // Label offset to the right of the dot.
+        placements.push({
+          name: body.name,
+          dotX: x,
+          dotY: y,
+          dotRadius: body.radius,
+          labelX: x + body.radius + 4,
+          labelY: y,
+          aboveHorizon
+        });
+      }
+
+      // Label collision avoidance: for each label whose target position is
+      // within ~40px horizontally and ~14px vertically of another already
+      // placed label, nudge it vertically outward (away from the chart
+      // center) in 14px increments until clear.
+      const placed = [];
+      const LABEL_LINE_HEIGHT = 14;
+      const X_PROXIMITY = 40;
+      const Y_PROXIMITY = 14;
+      for (const p of placements) {
+        const outwardSign = p.labelY >= cy ? 1 : -1; // push further from center
+        let labelY = p.labelY;
+        let safety = 10;
+        while (safety-- > 0) {
+          const collides = placed.some(q =>
+            Math.abs(q.labelX - p.labelX) < X_PROXIMITY &&
+            Math.abs(q.labelY - labelY) < Y_PROXIMITY
+          );
+          if (!collides) break;
+          labelY += outwardSign * LABEL_LINE_HEIGHT;
+        }
+        p.labelY = labelY;
+        placed.push(p);
+      }
+
+      // Second pass: leader lines then labels.
+      for (const p of placed) {
+        ctx.save();
+        ctx.globalAlpha = p.aboveHorizon ? 0.85 : 0.35;
+
+        if (Math.abs(p.labelY - p.dotY) > 2) {
+          ctx.strokeStyle = colors.grid;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(p.dotX + p.dotRadius, p.dotY);
+          ctx.lineTo(p.labelX - 2, p.labelY);
+          ctx.stroke();
+        }
+
         ctx.fillStyle = colors.label;
-        ctx.fillText(body.name, x + body.radius + 4, y);
+        ctx.fillText(p.name, p.labelX, p.labelY);
         ctx.restore();
       }
     }
