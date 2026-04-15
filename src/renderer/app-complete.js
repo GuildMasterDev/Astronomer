@@ -1503,8 +1503,8 @@
       }
       try {
         await window.astronomer.store.set('apiKeys', { nasa: key });
-        await window.astronomer.store.set('apiKeyPromptSeen', true);
         this.settings.apiKey = key;
+        await window.astronomer.store.set('apiKeyPromptSeen', true);
       } catch (e) {
         console.error('Failed to save API key:', e);
       }
