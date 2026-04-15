@@ -6,6 +6,8 @@ A secure, React-free Electron desktop application for exploring astronomy data a
 ![Electron](https://img.shields.io/badge/Electron-28.0.0-47848F?logo=electron)
 ![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Windows%20|%20Linux-lightgrey)
 
+![Astronomer Observe tab — interactive map and all-sky chart](docs/observe-tab.png)
+
 ## ✨ Features
 
 ### 🌌 Explore
