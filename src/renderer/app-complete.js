@@ -412,98 +412,115 @@
 
       if (!month || !day || !container) return;
 
-      container.innerHTML = '<div class="loading-spinner">Searching Hubble archives...</div>';
+      container.innerHTML = '<div class="loading-spinner">Fetching APOD archives for your birthday…</div>';
 
+      const years = [2024, 2023, 2022, 2021, 2020, 2019];
       try {
-        const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        const params = {
-          q: `Hubble ${monthNames[parseInt(month)]} ${parseInt(day)}`,
-          media_type: 'image'
-        };
+        const results = await Promise.all(
+          years.map(year =>
+            window.astronomer.api
+              .fetch('apod', { api_key: this.settings.apiKey, date: `${year}-${month}-${day}` })
+              .then(data => ({ year, data }))
+              .catch(err => {
+                console.warn(`APOD fetch for ${year}-${month}-${day} failed:`, err?.message || err);
+                return null;
+              })
+          )
+        );
 
-        const data = await window.astronomer.api.fetch('nasa-images', params);
-        
-        if (data?.collection?.items?.length > 0) {
-          this.displayBirthdayResults(data.collection.items, month, day);
-        } else {
-          container.innerHTML = '<p>No Hubble images found for this date. Try another date!</p>';
+        const slides = results
+          .filter(r => r && r.data && (r.data.url || r.data.hdurl))
+          .map(r => ({
+            year: r.year,
+            title: r.data.title || 'Untitled',
+            explanation: r.data.explanation || '',
+            mediaType: r.data.media_type || 'image',
+            url: r.data.url,
+            hdurl: r.data.hdurl,
+            date: r.data.date
+          }));
+
+        if (slides.length === 0) {
+          container.innerHTML = '<p>No APOD entries found for this date. Try another date!</p>';
+          return;
         }
+
+        this.displayBirthdayResults(slides, month, day);
       } catch (error) {
         console.error('Birthday search failed:', error);
         container.innerHTML = '<p>Search failed. Please try again.</p>';
       }
     }
 
-    displayBirthdayResults(items, month, day) {
+    displayBirthdayResults(slides, month, day) {
       const container = document.getElementById('birthday-results');
       if (!container) return;
 
       const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
                          'July', 'August', 'September', 'October', 'November', 'December'];
 
-      const hubbleImages = items.filter(item => 
-        item.data[0].keywords?.some(k => k.toLowerCase().includes('hubble'))
-      ).slice(0, 5);
+      const safe = (s) => String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-      if (hubbleImages.length === 0) {
-        container.innerHTML = '<p>No Hubble images found for this date</p>';
-        return;
-      }
+      const slidesHtml = slides.map((s, i) => {
+        const media = s.mediaType === 'video'
+          ? `<div class="birthday-video"><a href="#" onclick="window.astronomerApp.openExternal('${safe(s.url)}');return false;">Watch on NASA APOD →</a></div>`
+          : `<img src="${safe(s.hdurl || s.url)}" alt="${safe(s.title)}" />`;
+        return `
+          <div class="birthday-slide" data-index="${i}">
+            ${media}
+            <div class="birthday-info">
+              <p class="birthday-year">On your birthday in ${s.year}, NASA featured:</p>
+              <h3>${safe(s.title)}</h3>
+              <p>${this.truncateText(s.explanation, 280)}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
 
-      const content = `
-        <h2>Hubble Images from ${monthNames[parseInt(month)]} ${parseInt(day)}</h2>
+      container.innerHTML = `
+        <h2>APOD on ${monthNames[parseInt(month)]} ${parseInt(day)}</h2>
         <div class="birthday-carousel">
-          ${hubbleImages.map((item, index) => {
-            const data = item.data[0];
-            const imageUrl = item.links?.[0]?.href || '';
-            
-            return `
-              <div class="birthday-slide ${index === 0 ? 'active' : ''}" style="${index !== 0 ? 'display:none' : ''}">
-                <img src="${imageUrl}" alt="${data.title}" />
-                <div class="birthday-info">
-                  <h3>${data.title}</h3>
-                  <p>${this.truncateText(data.description || '', 200)}</p>
-                </div>
-              </div>
-            `;
-          }).join('')}
+          <div class="birthday-slides">${slidesHtml}</div>
         </div>
-        ${hubbleImages.length > 1 ? `
+        ${slides.length > 1 ? `
           <div class="birthday-navigation">
-            <button onclick="window.astronomerApp.previousSlide()">←</button>
-            <span id="slide-indicator">1 / ${hubbleImages.length}</span>
-            <button onclick="window.astronomerApp.nextSlide()">→</button>
+            <button class="btn btn-secondary" onclick="window.astronomerApp.previousSlide()">←</button>
+            <span id="slide-indicator">1 / ${slides.length}</span>
+            <button class="btn btn-secondary" onclick="window.astronomerApp.nextSlide()">→</button>
           </div>
         ` : ''}
       `;
 
-      container.innerHTML = content;
       this.currentSlide = 0;
-      this.totalSlides = hubbleImages.length;
+      this.totalSlides = slides.length;
+      this.updateBirthdaySlides();
+    }
+
+    updateBirthdaySlides() {
+      const slides = document.querySelectorAll('.birthday-slide');
+      slides.forEach((el, i) => {
+        el.classList.toggle('active', i === this.currentSlide);
+      });
+      const indicator = document.getElementById('slide-indicator');
+      if (indicator) indicator.textContent = `${this.currentSlide + 1} / ${this.totalSlides}`;
     }
 
     previousSlide() {
-      const slides = document.querySelectorAll('.birthday-slide');
       if (this.currentSlide > 0) {
-        slides[this.currentSlide].style.display = 'none';
         this.currentSlide--;
-        slides[this.currentSlide].style.display = 'block';
-        document.getElementById('slide-indicator').textContent = 
-          `${this.currentSlide + 1} / ${this.totalSlides}`;
+        this.updateBirthdaySlides();
       }
     }
 
     nextSlide() {
-      const slides = document.querySelectorAll('.birthday-slide');
       if (this.currentSlide < this.totalSlides - 1) {
-        slides[this.currentSlide].style.display = 'none';
         this.currentSlide++;
-        slides[this.currentSlide].style.display = 'block';
-        document.getElementById('slide-indicator').textContent = 
-          `${this.currentSlide + 1} / ${this.totalSlides}`;
+        this.updateBirthdaySlides();
       }
+    }
+
+    openExternal(url) {
+      try { window.astronomer.system.openExternal(url); } catch (e) { console.error(e); }
     }
 
     // ========== Observe Tonight ==========
@@ -984,44 +1001,155 @@
       const container = document.getElementById('objects-grid');
       if (!container) return;
 
+      container.innerHTML = '<div class="loading-spinner">Computing object distances...</div>';
+
+      const AU_TO_KM = 149597870.7;
+
       const solarSystem = [
-        { name: 'Sun', type: 'Star', distance: 149597870.7, diameter: 1391400, icon: '☀️' },
-        { name: 'Mercury', type: 'Planet', distance: 77300000, diameter: 4879, icon: '🪐' },
-        { name: 'Venus', type: 'Planet', distance: 108200000, diameter: 12104, icon: '🪐' },
-        { name: 'Earth', type: 'Planet', distance: 149597870.7, diameter: 12756, icon: '🌍' },
-        { name: 'Moon', type: 'Satellite', distance: 384400, diameter: 3475, icon: '🌙' },
-        { name: 'Mars', type: 'Planet', distance: 227900000, diameter: 6792, icon: '🔴' },
-        { name: 'Jupiter', type: 'Planet', distance: 778500000, diameter: 142984, icon: '🪐' },
-        { name: 'Saturn', type: 'Planet', distance: 1434000000, diameter: 120536, icon: '🪐' },
-        { name: 'Uranus', type: 'Planet', distance: 2873000000, diameter: 51118, icon: '🪐' },
-        { name: 'Neptune', type: 'Planet', distance: 4495000000, diameter: 49528, icon: '🪐' }
+        { name: 'Sun', type: 'Star', diameter: 1391400, icon: '☀️', trackable: true },
+        { name: 'Mercury', type: 'Planet', diameter: 4879, icon: '🪐', trackable: true },
+        { name: 'Venus', type: 'Planet', diameter: 12104, icon: '🪐', trackable: true },
+        { name: 'Earth', type: 'Planet', diameter: 12756, icon: '🌍', trackable: false },
+        { name: 'Moon', type: 'Satellite', diameter: 3475, icon: '🌙', trackable: true },
+        { name: 'Mars', type: 'Planet', diameter: 6792, icon: '🔴', trackable: true },
+        { name: 'Jupiter', type: 'Planet', diameter: 142984, icon: '🪐', trackable: true },
+        { name: 'Saturn', type: 'Planet', diameter: 120536, icon: '🪐', trackable: true },
+        // Uranus/Neptune not in the compute payload — fall back to mean distance.
+        { name: 'Uranus', type: 'Planet', diameter: 51118, icon: '🪐', fallbackKm: 2873000000, trackable: false },
+        { name: 'Neptune', type: 'Planet', diameter: 49528, icon: '🪐', fallbackKm: 4495000000, trackable: false }
       ];
 
-      const content = `
-        <h2>Solar System Objects</h2>
-        <div class="objects-cards">
-          ${solarSystem.map(obj => {
-            const isFavorited = this.favorites.some(f => f.id === obj.name);
-            return `
-              <div class="object-card">
-                <div class="object-icon" style="font-size: 48px;">${obj.icon}</div>
-                <div class="object-card-body">
-                  <h3>${obj.name}</h3>
-                  <p class="object-type">${obj.type}</p>
-                  <p>Distance: ${this.formatDistance(obj.distance)}</p>
-                  <p>Diameter: ${obj.diameter.toLocaleString()} km</p>
-                  <button class="favorite-button ${isFavorited ? 'favorited' : ''}" 
-                          onclick="window.astronomerApp.toggleFavorite('object', '${obj.name}', ${JSON.stringify(obj).replace(/"/g, '&quot;')})">
-                    ${isFavorited ? '★ Favorited' : '☆ Favorite'}
-                  </button>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
+      // Fetch live distances via astronomy-compute. Location only matters for
+      // the topocentric correction, which at these distances is negligible.
+      let astro = null;
+      try {
+        const loc = await this.getLocation();
+        const result = await window.astronomer.astronomy.compute(
+          { latitude: loc.latitude, longitude: loc.longitude },
+          new Date()
+        );
+        if (result?.data) astro = result.data;
+      } catch (e) {
+        console.error('Failed to fetch live object distances:', e);
+      }
 
-      container.innerHTML = content;
+      const distanceFor = (obj) => {
+        if (!astro) return obj.fallbackKm != null ? obj.fallbackKm : null;
+        if (obj.name === 'Sun') return astro.sun.distanceAu * AU_TO_KM;
+        if (obj.name === 'Moon') return astro.moon.distanceAu * AU_TO_KM;
+        if (obj.name === 'Earth') return 0;
+        const p = astro.planets.find(pl => pl.name === obj.name);
+        if (p) return p.distanceAu * AU_TO_KM;
+        return obj.fallbackKm != null ? obj.fallbackKm : null;
+      };
+
+      const exoplanets = [
+        { name: 'Proxima Centauri b', host: 'Proxima Centauri', lightYears: 4.24, discovered: 2016,
+          note: 'Closest known exoplanet; rocky, in the habitable zone of our nearest stellar neighbor.' },
+        { name: 'TRAPPIST-1e', host: 'TRAPPIST-1', lightYears: 40.7, discovered: 2017,
+          note: 'One of seven Earth-sized worlds around an ultra-cool red dwarf; prime habitability candidate.' },
+        { name: 'Kepler-452b', host: 'Kepler-452', lightYears: 1402, discovered: 2015,
+          note: 'Sometimes called "Earth\'s cousin" — a super-Earth in a Sun-like star\'s habitable zone.' },
+        { name: '55 Cancri e', host: '55 Cancri A', lightYears: 41, discovered: 2004,
+          note: 'Super-Earth so close to its star that its surface may be a global magma ocean.' },
+        { name: 'WASP-12b', host: 'WASP-12', lightYears: 1411, discovered: 2008,
+          note: 'Ultra-hot Jupiter being slowly devoured by its star; daytime surface ~2500 K.' },
+        { name: 'HD 189733 b', host: 'HD 189733 A', lightYears: 64.5, discovered: 2005,
+          note: 'Deep cobalt-blue gas giant where molten-glass rain blows sideways in 8,700 km/h winds.' },
+        { name: 'Kepler-22b', host: 'Kepler-22', lightYears: 635, discovered: 2011,
+          note: 'First exoplanet found in the habitable zone of a Sun-like star by the Kepler mission.' },
+        { name: 'GJ 1214 b', host: 'GJ 1214', lightYears: 47.5, discovered: 2009,
+          note: 'Warm sub-Neptune "water world" — JWST spectra suggest a thick, hazy atmosphere.' },
+        { name: 'LHS 1140 b', host: 'LHS 1140', lightYears: 48.9, discovered: 2017,
+          note: 'Dense super-Earth in the habitable zone of a quiet red dwarf; strong candidate for biosignature searches.' },
+        { name: 'TOI-700 d', host: 'TOI-700', lightYears: 101.4, discovered: 2020,
+          note: 'First Earth-size habitable-zone planet TESS found, orbiting a cool M-dwarf.' }
+      ];
+
+      const objectJson = (obj) =>
+        JSON.stringify(obj).replace(/"/g, '&quot;');
+
+      const solarCards = solarSystem.map(obj => {
+        const isFavorited = this.favorites.some(f => f.id === obj.name);
+        const km = distanceFor(obj);
+        const distLine = km == null
+          ? '<p>Distance: —</p>'
+          : (obj.name === 'Earth'
+              ? '<p>You are here 🙂</p>'
+              : `<p>Current distance from Earth: ${this.formatDistance(Math.round(km))}</p>`);
+        const trackBtn = obj.trackable
+          ? `<button class="btn btn-secondary track-btn" onclick="window.astronomerApp.trackTonight('${obj.name}')">Track Tonight</button>`
+          : '';
+        const favArg = { name: obj.name, type: obj.type, diameter: obj.diameter, icon: obj.icon, distanceKm: km };
+        return `
+          <div class="object-card" id="object-card-${obj.name}">
+            <div class="object-icon" style="font-size: 48px;">${obj.icon}</div>
+            <div class="object-card-body">
+              <h3>${obj.name}</h3>
+              <p class="object-type">${obj.type}</p>
+              ${distLine}
+              <p>Diameter: ${obj.diameter.toLocaleString()} km</p>
+              <div class="object-card-actions">
+                ${trackBtn}
+                <button class="favorite-button ${isFavorited ? 'favorited' : ''}"
+                        onclick="window.astronomerApp.toggleFavorite('object', '${obj.name}', ${objectJson(favArg)})">
+                  ${isFavorited ? '★ Favorited' : '☆ Favorite'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const exoCards = exoplanets.map(p => {
+        const id = `exo-${p.name.replace(/[^a-z0-9]+/gi, '-')}`;
+        const isFavorited = this.favorites.some(f => f.id === id);
+        const favArg = { id, name: p.name, host: p.host, lightYears: p.lightYears, discovered: p.discovered, note: p.note, icon: '🪐' };
+        return `
+          <div class="object-card exoplanet-card">
+            <div class="object-icon" style="font-size: 44px;">🪐</div>
+            <div class="object-card-body">
+              <h3>${p.name}</h3>
+              <p class="object-type">Exoplanet · ${p.host}</p>
+              <p>${p.lightYears.toLocaleString()} light-years away</p>
+              <p>Discovered ${p.discovered}</p>
+              <p class="exo-note">${p.note}</p>
+              <button class="favorite-button ${isFavorited ? 'favorited' : ''}"
+                      onclick="window.astronomerApp.toggleFavorite('object', '${id}', ${objectJson(favArg)})">
+                ${isFavorited ? '★ Favorited' : '☆ Favorite'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <h2>Solar System</h2>
+        <p class="section-subtitle">Distances computed live from the observer's location.</p>
+        <div class="objects-cards">${solarCards}</div>
+
+        <h2 class="exoplanets-heading">Notable Exoplanets</h2>
+        <p class="section-subtitle">A sampler of worlds beyond our Solar System.</p>
+        <div class="objects-cards">${exoCards}</div>
+      `;
+    }
+
+    async trackTonight(bodyName) {
+      await this.showTab('observe');
+      // Wait one frame so the observation data renders, then scroll the matching
+      // planet card into view and briefly highlight it.
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const section = Array.from(document.querySelectorAll('#observation-data .obs-section'))
+            .find(s => s.querySelector('h3')?.textContent === bodyName)
+            || Array.from(document.querySelectorAll('#observation-data .planet-list li'))
+              .find(li => li.querySelector('strong')?.textContent === bodyName);
+          if (!section) return;
+          section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          section.classList.add('track-highlight');
+          setTimeout(() => section.classList.remove('track-highlight'), 2000);
+        }, 200);
+      });
     }
 
     // ========== Favorites ==========

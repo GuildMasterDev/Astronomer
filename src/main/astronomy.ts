@@ -19,12 +19,13 @@ interface PlanetData {
   altitude: number;
   azimuth: number;
   magnitude: number;
+  distanceAu: number;
   visible: boolean;
 }
 
 interface ObservationData {
   twilight: { sunset: string | null; civil: string | null; nautical: string | null; astronomical: string | null };
-  sun: { rise: string | null; set: string | null; altitude: number; azimuth: number };
+  sun: { rise: string | null; set: string | null; altitude: number; azimuth: number; distanceAu: number };
   moon: {
     phase: string;
     phaseAngle: number;
@@ -34,6 +35,7 @@ interface ObservationData {
     magnitude: number;
     altitude: number;
     azimuth: number;
+    distanceAu: number;
   };
   planets: PlanetData[];
 }
@@ -90,6 +92,7 @@ function computePlanet(
     altitude: hor.altitude,
     azimuth: hor.azimuth,
     magnitude: illum.mag,
+    distanceAu: eq.dist,
     visible: hor.altitude > 0
   };
 }
@@ -122,7 +125,7 @@ export async function computeObservation(location: LatLon, date: Date): Promise<
       const rs = riseSet(Astronomy.Body.Sun, observer, searchStart);
       const eq = Astronomy.Equator(Astronomy.Body.Sun, date, observer, true, true);
       const hor = Astronomy.Horizon(date, observer, eq.ra, eq.dec, 'normal');
-      return { rise: rs.rise, set: rs.set, altitude: hor.altitude, azimuth: hor.azimuth };
+      return { rise: rs.rise, set: rs.set, altitude: hor.altitude, azimuth: hor.azimuth, distanceAu: eq.dist };
     }),
     Promise.resolve().then(() => {
       const rs = riseSet(Astronomy.Body.Moon, observer, searchStart);
@@ -138,7 +141,8 @@ export async function computeObservation(location: LatLon, date: Date): Promise<
         set: rs.set,
         magnitude: illum.mag,
         altitude: hor.altitude,
-        azimuth: hor.azimuth
+        azimuth: hor.azimuth,
+        distanceAu: eq.dist
       };
     }),
     Promise.resolve().then(() => {

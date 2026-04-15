@@ -694,3 +694,114 @@ body.night-vision .sky-chart {
   height: auto;
   background: transparent;
 }
+
+/* ========== Objects tab extras ========== */
+
+.section-subtitle {
+  color: var(--text-secondary);
+  margin: 0.25rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+.exoplanets-heading {
+  margin-top: 2.5rem;
+}
+
+.object-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.track-btn {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.exo-note {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+}
+
+.track-highlight {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+  animation: track-pulse 2s ease-out;
+}
+
+@keyframes track-pulse {
+  0% { background-color: rgba(74, 105, 189, 0.25); }
+  100% { background-color: transparent; }
+}
+
+/* ========== Birthday carousel ========== */
+
+.birthday-carousel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  min-height: 360px;
+}
+
+.birthday-slides {
+  position: relative;
+  min-height: 360px;
+}
+
+.birthday-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.birthday-slide.active {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  position: relative;
+}
+
+.birthday-slide img {
+  width: 100%;
+  max-height: 480px;
+  object-fit: cover;
+  display: block;
+}
+
+.birthday-video {
+  padding: 2rem;
+  text-align: center;
+}
+
+.birthday-info {
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.birthday-year {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.birthday-info h3 {
+  margin-bottom: 0.5rem;
+}
+
+.birthday-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
