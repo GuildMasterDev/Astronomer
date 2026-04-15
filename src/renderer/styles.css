@@ -695,6 +695,51 @@ body.night-vision .sky-chart {
   background: transparent;
 }
 
+.sky-chart-updated {
+  align-self: flex-end;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.25rem;
+}
+
+/* ========== API key prompt ========== */
+
+.apikey-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 480px;
+}
+
+.apikey-prompt h2 {
+  margin: 0;
+}
+
+.apikey-prompt .apikey-help {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.apikey-prompt input[type="text"] {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.apikey-prompt-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
 /* ========== Objects tab extras ========== */
 
 .section-subtitle {

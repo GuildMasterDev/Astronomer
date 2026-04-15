@@ -31,6 +31,7 @@
       this.setupNightVision();
       this.setupSearch();
       this.setupActionDelegation();
+      this.maybePromptForApiKey();
       this.showTab('explore');
       await this.loadAPOD();
     }
@@ -77,6 +78,8 @@
 
       this.currentTab = tabName;
 
+      if (tabName !== 'observe') this.stopObserveAutoRefresh();
+
       // Load tab-specific content
       switch(tabName) {
         case 'explore':
@@ -87,6 +90,7 @@
           break;
         case 'observe':
           await this.loadObservationData();
+          this.startObserveAutoRefresh();
           break;
         case 'objects':
           await this.loadObjects();
@@ -179,6 +183,12 @@
           case 'open-external':
             event.preventDefault();
             this.openExternal(el.dataset.url);
+            break;
+          case 'apikey-save':
+            this.saveApiKeyFromPrompt();
+            break;
+          case 'apikey-skip':
+            this.dismissApiKeyPrompt();
             break;
         }
       });
@@ -475,44 +485,49 @@
 
       if (!month || !day || !container) return;
 
-      container.innerHTML = '<div class="loading-spinner">Fetching APOD archives for your birthday…</div>';
-
       const years = [2024, 2023, 2022, 2021, 2020, 2019];
-      try {
-        const results = await Promise.all(
-          years.map(year =>
-            window.astronomer.api
-              .fetch('apod', { api_key: this.settings.apiKey, date: `${year}-${month}-${day}` })
-              .then(data => ({ year, data }))
-              .catch(err => {
-                console.warn(`APOD fetch for ${year}-${month}-${day} failed:`, err?.message || err);
-                return null;
-              })
-          )
-        );
+      const setProgress = (i, year) => {
+        container.innerHTML = `
+          <div class="loading-spinner">Searching year ${year}… (${i}/${years.length})</div>
+        `;
+      };
+      setProgress(0, years[0]);
 
-        const slides = results
-          .filter(r => r && r.data && (r.data.url || r.data.hdurl))
-          .map(r => ({
-            year: r.year,
-            title: r.data.title || 'Untitled',
-            explanation: r.data.explanation || '',
-            mediaType: r.data.media_type || 'image',
-            url: r.data.url,
-            hdurl: r.data.hdurl,
-            date: r.data.date
-          }));
+      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+      const slides = [];
 
-        if (slides.length === 0) {
-          container.innerHTML = '<p>No APOD entries found for this date. Try another date!</p>';
-          return;
+      for (let i = 0; i < years.length; i++) {
+        const year = years[i];
+        setProgress(i + 1, year);
+        try {
+          const data = await window.astronomer.api.fetch('apod', {
+            api_key: this.settings.apiKey,
+            date: `${year}-${month}-${day}`
+          });
+          if (data && (data.url || data.hdurl)) {
+            slides.push({
+              year,
+              title: data.title || 'Untitled',
+              explanation: data.explanation || '',
+              mediaType: data.media_type || 'image',
+              url: data.url,
+              hdurl: data.hdurl,
+              date: data.date
+            });
+          }
+        } catch (err) {
+          console.warn(`APOD fetch for ${year}-${month}-${day} failed:`, err?.message || err);
         }
-
-        this.displayBirthdayResults(slides, month, day);
-      } catch (error) {
-        console.error('Birthday search failed:', error);
-        container.innerHTML = '<p>Search failed. Please try again.</p>';
+        // Throttle so DEMO_KEY's 30/hr limit isn't blown in one click.
+        if (i < years.length - 1) await sleep(1000);
       }
+
+      if (slides.length === 0) {
+        container.innerHTML = '<p>No APOD entries found for this date. Try another date!</p>';
+        return;
+      }
+
+      this.displayBirthdayResults(slides, month, day);
     }
 
     displayBirthdayResults(slides, month, day) {
@@ -612,6 +627,7 @@
         const astro = astroResult.data;
         const iss = issResult && !issResult.error ? issResult.data : null;
         this.renderSkyChart(astro, iss);
+        this.updateSkyChartTimestamp(now);
 
         const fmtTime = iso =>
           iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -825,6 +841,33 @@
       const latlng = [lat, lon];
       this.observeMarker.setLatLng(latlng);
       if (pan) this.observeMap.panTo(latlng);
+    }
+
+    updateSkyChartTimestamp(date) {
+      const el = document.getElementById('sky-chart-updated');
+      if (!el) return;
+      const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      el.textContent = `Last updated: ${time} · auto-refreshes every 60s`;
+    }
+
+    startObserveAutoRefresh() {
+      this.stopObserveAutoRefresh();
+      this.observeRefreshInterval = setInterval(() => {
+        if (this.currentTab !== 'observe') {
+          this.stopObserveAutoRefresh();
+          return;
+        }
+        this.loadObservationData().catch(err =>
+          console.error('Auto-refresh failed:', err)
+        );
+      }, 60 * 1000);
+    }
+
+    stopObserveAutoRefresh() {
+      if (this.observeRefreshInterval) {
+        clearInterval(this.observeRefreshInterval);
+        this.observeRefreshInterval = null;
+      }
     }
 
     renderSkyChart(astro, iss = null) {
@@ -1399,10 +1442,85 @@
 
     closeModal() {
       const modal = document.getElementById('modal');
-      if (modal) {
-        modal.classList.remove('active');
-        modal.setAttribute('aria-hidden', 'true');
+      if (!modal) return;
+      // If the API-key prompt is the open modal, persist the dismissal so we
+      // don't pester the user on next launch.
+      if (document.getElementById('apikey-input')) {
+        window.astronomer.store.set('apiKeyPromptSeen', true).catch(() => {});
       }
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    async maybePromptForApiKey() {
+      try {
+        const seen = await window.astronomer.store.get('apiKeyPromptSeen');
+        if (seen === true) return;
+      } catch (e) {
+        // If store read fails, fall through and show the prompt — better to
+        // ask once needlessly than to never ask.
+      }
+      const key = (this.settings.apiKey || '').trim();
+      if (key && key !== 'DEMO_KEY') return;
+      this.showApiKeyPrompt();
+    }
+
+    showApiKeyPrompt() {
+      const modal = document.getElementById('modal');
+      const modalBody = document.getElementById('modal-body');
+      if (!modal || !modalBody) return;
+
+      modalBody.innerHTML = `
+        <div class="apikey-prompt">
+          <h2>Add your NASA API key</h2>
+          <p class="apikey-help">
+            Astronomer works best with a free NASA API key. Without one, you'll hit rate
+            limits quickly (the shared <code>DEMO_KEY</code> allows just 30 requests/hour
+            per IP). Get one in under a minute at
+            <a href="#" data-action="open-external" data-url="https://api.nasa.gov/">api.nasa.gov</a>.
+          </p>
+          <input type="text" id="apikey-input" placeholder="Paste your NASA API key here" autocomplete="off" spellcheck="false" />
+          <div class="apikey-prompt-actions">
+            <button class="btn btn-secondary" data-action="apikey-skip">Continue with demo key</button>
+            <button class="btn btn-primary" data-action="apikey-save">Save key</button>
+          </div>
+        </div>
+      `;
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      // Focus the input for fast keyboard entry.
+      requestAnimationFrame(() => {
+        document.getElementById('apikey-input')?.focus();
+      });
+    }
+
+    async saveApiKeyFromPrompt() {
+      const input = document.getElementById('apikey-input');
+      const key = input?.value.trim();
+      if (!key) {
+        input?.focus();
+        return;
+      }
+      try {
+        await window.astronomer.store.set('apiKeys', { nasa: key });
+        await window.astronomer.store.set('apiKeyPromptSeen', true);
+        this.settings.apiKey = key;
+      } catch (e) {
+        console.error('Failed to save API key:', e);
+      }
+      this.closeModal();
+      // Reload APOD with the new key so the user sees an immediate result.
+      this.apodData = null;
+      if (this.currentTab === 'explore') this.loadAPOD();
+    }
+
+    async dismissApiKeyPrompt() {
+      try {
+        await window.astronomer.store.set('apiKeyPromptSeen', true);
+      } catch (e) {
+        console.error('Failed to persist apiKeyPromptSeen:', e);
+      }
+      this.closeModal();
     }
   }
 

@@ -9,7 +9,7 @@ const RISE = 1;
 const SET = -1;
 const SEARCH_DAYS = 1;
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 90 * 1000;
 const CACHE_MAX = 32;
 
 interface PlanetData {
