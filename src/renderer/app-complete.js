@@ -480,14 +480,40 @@
       try {
         const location = await this.getLocation();
         const now = new Date();
-        
-        // Get ISS position
-        let issData = null;
-        try {
-          issData = await window.astronomer.api.fetch('iss-position', {});
-        } catch (e) {
-          console.error('ISS fetch failed:', e);
+
+        const [astroResult, issData] = await Promise.all([
+          window.astronomer.astronomy.compute(
+            { latitude: location.latitude, longitude: location.longitude },
+            now
+          ),
+          window.astronomer.api.fetch('iss-position', {}).catch(e => {
+            console.error('ISS fetch failed:', e);
+            return null;
+          })
+        ]);
+
+        if (!astroResult || astroResult.error || !astroResult.data) {
+          throw new Error(astroResult?.error || 'No astronomy data');
         }
+        const astro = astroResult.data;
+
+        const fmtTime = iso =>
+          iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+        const fmtNum = (n, d = 1) => (typeof n === 'number' ? n.toFixed(d) : '—');
+
+        const visiblePlanets = astro.planets.filter(p => p.visible);
+        const planetsHtml = visiblePlanets.length === 0
+          ? `<p>No planets currently above the horizon at ${location.name}.</p>
+             <ul>${astro.planets.map(p =>
+               `<li>${p.name}: rises ${fmtTime(p.rise)}, sets ${fmtTime(p.set)} (mag ${fmtNum(p.magnitude, 2)})</li>`
+             ).join('')}</ul>`
+          : `<ul class="planet-list">${visiblePlanets.map(p => `
+              <li>
+                <strong>${p.name}</strong> — alt ${fmtNum(p.altitude)}°, az ${fmtNum(p.azimuth)}°,
+                mag ${fmtNum(p.magnitude, 2)}
+                <br><small>Rise ${fmtTime(p.rise)} · Set ${fmtTime(p.set)}</small>
+              </li>
+            `).join('')}</ul>`;
 
         const content = `
           <div class="observation-sections">
@@ -499,16 +525,30 @@
             </section>
 
             <section class="obs-section">
-              <h3>Moon Phase</h3>
-              <p>${this.getMoonPhase(now)}</p>
-              <p>Illumination: ${this.getMoonIllumination(now)}%</p>
+              <h3>Sun</h3>
+              <p>Rise: ${fmtTime(astro.sun.rise)} · Set: ${fmtTime(astro.sun.set)}</p>
+              <p>Current altitude: ${fmtNum(astro.sun.altitude)}° · Azimuth: ${fmtNum(astro.sun.azimuth)}°</p>
             </section>
 
             <section class="obs-section">
-              <h3>Best Viewing Times Tonight</h3>
-              <p>Astronomical Twilight: ~9:00 PM</p>
-              <p>Best Deep Sky: 10:00 PM - 2:00 AM</p>
-              <p>Pre-Dawn: 4:00 AM - 5:30 AM</p>
+              <h3>Twilight (dusk)</h3>
+              <p>Sunset: ${fmtTime(astro.twilight.sunset)}</p>
+              <p>Civil (-6°): ${fmtTime(astro.twilight.civil)}</p>
+              <p>Nautical (-12°): ${fmtTime(astro.twilight.nautical)}</p>
+              <p>Astronomical (-18°): ${fmtTime(astro.twilight.astronomical)}</p>
+            </section>
+
+            <section class="obs-section">
+              <h3>Moon</h3>
+              <p>Phase: ${astro.moon.phase}</p>
+              <p>Illumination: ${fmtNum(astro.moon.illumination)}%</p>
+              <p>Rise: ${fmtTime(astro.moon.rise)} · Set: ${fmtTime(astro.moon.set)}</p>
+              <p>Current altitude: ${fmtNum(astro.moon.altitude)}° · Azimuth: ${fmtNum(astro.moon.azimuth)}°</p>
+            </section>
+
+            <section class="obs-section">
+              <h3>Visible Planets Tonight</h3>
+              ${planetsHtml}
             </section>
 
             ${issData ? `
@@ -520,17 +560,6 @@
                 <p>Velocity: ${issData.velocity.toFixed(0)} km/h</p>
               </section>
             ` : ''}
-
-            <section class="obs-section">
-              <h3>Visible Planets Tonight</h3>
-              <p>Check your astronomy app for current planet positions</p>
-              <ul>
-                <li>Venus: Often visible after sunset or before sunrise</li>
-                <li>Mars: Check eastern sky after midnight</li>
-                <li>Jupiter: Usually visible most of the night</li>
-                <li>Saturn: Best viewed in evening hours</li>
-              </ul>
-            </section>
           </div>
         `;
 
@@ -538,7 +567,7 @@
         this.setupLocationPicker();
       } catch (error) {
         console.error('Failed to load observation data:', error);
-        container.innerHTML = '<p>Failed to load observation data</p>';
+        container.innerHTML = `<p>Failed to load observation data: ${error.message}</p>`;
       }
     }
 

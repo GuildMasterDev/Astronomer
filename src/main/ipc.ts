@@ -174,7 +174,7 @@ ipcMain.handle('open-external', async (event, url: string) => {
 ipcMain.handle('astronomy-compute', async (_event, location: { latitude: number; longitude: number }, isoDate?: string) => {
   try {
     const date = isoDate ? new Date(isoDate) : new Date();
-    return { data: computeObservation(location, date), error: null };
+    return { data: await computeObservation(location, date), error: null };
   } catch (error: any) {
     console.error('astronomy-compute error:', error);
     return { data: null, error: error?.message || 'Astronomy compute failed' };
