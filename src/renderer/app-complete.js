@@ -573,60 +573,130 @@
 
     setupLocationPicker() {
       const useLocationBtn = document.getElementById('use-location');
+      const latInput = document.getElementById('latitude');
+      const lonInput = document.getElementById('longitude');
+
       if (useLocationBtn && !useLocationBtn.onclick) {
         useLocationBtn.onclick = async () => {
-          if ('geolocation' in navigator) {
-            useLocationBtn.textContent = 'Getting Location...';
-            useLocationBtn.disabled = true;
-            
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                document.getElementById('latitude').value = position.coords.latitude.toFixed(4);
-                document.getElementById('longitude').value = position.coords.longitude.toFixed(4);
-                document.getElementById('location-name').value = 'Current Location';
-                useLocationBtn.textContent = 'Use My Location';
-                useLocationBtn.disabled = false;
-                this.loadObservationData();
-              },
-              (error) => {
-                let errorMessage = 'Could not get your location. ';
-                switch(error.code) {
-                  case error.PERMISSION_DENIED:
-                    errorMessage += 'Permission denied. Please allow location access.';
-                    break;
-                  case error.POSITION_UNAVAILABLE:
-                    errorMessage += 'Location information unavailable.';
-                    break;
-                  case error.TIMEOUT:
-                    errorMessage += 'Location request timed out.';
-                    break;
-                  default:
-                    errorMessage += 'An unknown error occurred.';
-                }
-                alert(errorMessage);
-                useLocationBtn.textContent = 'Use My Location';
-                useLocationBtn.disabled = false;
-              },
-              {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-              }
-            );
-          } else {
+          if (!('geolocation' in navigator)) {
             alert('Geolocation is not supported by your browser');
+            return;
           }
+          useLocationBtn.textContent = 'Getting Location...';
+          useLocationBtn.disabled = true;
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const lat = position.coords.latitude;
+              const lon = position.coords.longitude;
+              latInput.value = lat.toFixed(4);
+              lonInput.value = lon.toFixed(4);
+              document.getElementById('location-name').value = 'Current Location';
+              useLocationBtn.textContent = 'Use My Location';
+              useLocationBtn.disabled = false;
+              this.setMapLocation(lat, lon, { pan: true });
+              this.loadObservationData();
+            },
+            (error) => {
+              const reasons = {
+                [error.PERMISSION_DENIED]: 'Permission denied. Please allow location access.',
+                [error.POSITION_UNAVAILABLE]: 'Location information unavailable.',
+                [error.TIMEOUT]: 'Location request timed out.'
+              };
+              alert('Could not get your location. ' + (reasons[error.code] || 'An unknown error occurred.'));
+              useLocationBtn.textContent = 'Use My Location';
+              useLocationBtn.disabled = false;
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          );
         };
       }
-      // Set default values in the input fields
+
+      // Seed inputs from stored/default location
       this.getLocation().then(location => {
         const nameInput = document.getElementById('location-name');
-        const latInput = document.getElementById('latitude');
-        const lonInput = document.getElementById('longitude');
         if (nameInput && !nameInput.value) nameInput.value = location.name;
         if (latInput && !latInput.value) latInput.value = location.latitude;
         if (lonInput && !lonInput.value) lonInput.value = location.longitude;
+        this.initObserveMap();
       });
+
+      // Input-driven updates move the marker and recalc observations.
+      if (latInput && !latInput.dataset.mapBound) {
+        latInput.dataset.mapBound = '1';
+        lonInput.dataset.mapBound = '1';
+        const onInputChange = () => {
+          const lat = parseFloat(latInput.value);
+          const lon = parseFloat(lonInput.value);
+          if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            this.setMapLocation(lat, lon, { pan: true });
+            this.loadObservationData();
+          }
+        };
+        latInput.addEventListener('change', onInputChange);
+        lonInput.addEventListener('change', onInputChange);
+      }
+    }
+
+    async initObserveMap() {
+      const container = document.getElementById('observe-map');
+      if (!container || this.observeMap || typeof L === 'undefined') return;
+
+      // Leaflet ships marker icons as separate assets — point them at the
+      // locally-vendored copies so file:// loads resolve correctly.
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'vendor/leaflet/images/marker-icon-2x.png',
+        iconUrl: 'vendor/leaflet/images/marker-icon.png',
+        shadowUrl: 'vendor/leaflet/images/marker-shadow.png'
+      });
+
+      const location = await this.getLocation();
+      const map = L.map(container, {
+        center: [location.latitude, location.longitude],
+        zoom: 6,
+        worldCopyJump: true
+      });
+
+      L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      const marker = L.marker([location.latitude, location.longitude], { draggable: true }).addTo(map);
+
+      const applyLatLng = (latlng, { recompute }) => {
+        const lat = latlng.lat;
+        const lon = latlng.lng;
+        const latInput = document.getElementById('latitude');
+        const lonInput = document.getElementById('longitude');
+        if (latInput) latInput.value = lat.toFixed(4);
+        if (lonInput) lonInput.value = lon.toFixed(4);
+        if (recompute) this.loadObservationData();
+      };
+
+      map.on('click', (e) => {
+        marker.setLatLng(e.latlng);
+        applyLatLng(e.latlng, { recompute: true });
+      });
+
+      marker.on('dragend', () => {
+        applyLatLng(marker.getLatLng(), { recompute: true });
+      });
+
+      this.observeMap = map;
+      this.observeMarker = marker;
+
+      // Leaflet needs a size recalc if the container was hidden when first created.
+      setTimeout(() => map.invalidateSize(), 0);
+    }
+
+    setMapLocation(lat, lon, { pan = false } = {}) {
+      if (!this.observeMap || !this.observeMarker) return;
+      const latlng = [lat, lon];
+      this.observeMarker.setLatLng(latlng);
+      if (pan) this.observeMap.panTo(latlng);
     }
 
     async getLocation() {

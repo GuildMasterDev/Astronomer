@@ -501,11 +501,35 @@ select:focus {
   background: var(--bg-secondary);
   padding: 1.5rem;
   border-radius: var(--radius);
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.observe-map {
+  width: 100%;
+  height: 300px;
+  margin-bottom: 2rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.observe-map .leaflet-container {
+  background: #0b0f17;
+  font-family: inherit;
+}
+
+.observe-map .leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.6);
+  color: #ccc;
+}
+
+.observe-map .leaflet-control-attribution a {
+  color: #9ab;
 }
 
 [data-reduce-motion="true"] * {

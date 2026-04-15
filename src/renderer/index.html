@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;">
   <title>Astronomer</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -151,6 +152,7 @@
             <input type="number" id="latitude" placeholder="Latitude" step="0.0001">
             <input type="number" id="longitude" placeholder="Longitude" step="0.0001">
           </div>
+          <div class="observe-map" id="observe-map" aria-label="Observation location map"></div>
           <div class="observation-data" id="observation-data"></div>
         </div>
       </div>
@@ -245,6 +247,7 @@
     </div>
   </div>
 
+  <script src="vendor/leaflet/leaflet.js"></script>
   <script src="app-complete.js"></script>
 </body>
 </html>

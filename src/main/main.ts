@@ -32,7 +32,7 @@ function createWindow() {
           "default-src 'self'",
           "script-src 'self'",
           "style-src 'self' 'unsafe-inline'",
-          "img-src 'self' data: https://apod.nasa.gov https://images-api.nasa.gov https://epic.gsfc.nasa.gov",
+          "img-src 'self' data: https://apod.nasa.gov https://images-api.nasa.gov https://epic.gsfc.nasa.gov https://basemaps.cartocdn.com",
           "connect-src 'self' https://api.nasa.gov https://images-api.nasa.gov https://ssd.jpl.nasa.gov https://ssd-api.jpl.nasa.gov https://exoplanetarchive.ipac.caltech.edu https://api.wheretheiss.at",
           "font-src 'self'",
           "object-src 'none'",
