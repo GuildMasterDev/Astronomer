@@ -2,6 +2,14 @@
 (function() {
   'use strict';
 
+  const PLANET_COLORS = {
+    Mercury: '#b5b1a6',
+    Venus: '#f2e2b6',
+    Mars: '#e06a4c',
+    Jupiter: '#d9a26c',
+    Saturn: '#e8d090'
+  };
+
   class AstronomerApp {
     constructor() {
       this.currentTab = 'explore';
@@ -20,6 +28,7 @@
       await this.loadFavorites();
       this.setupTabs();
       this.setupTheme();
+      this.setupNightVision();
       this.setupSearch();
       this.showTab('explore');
       await this.loadAPOD();
@@ -101,6 +110,33 @@
           this.saveSettings();
         });
       }
+    }
+
+    async setupNightVision() {
+      const toggle = document.getElementById('night-vision-toggle');
+      if (!toggle) return;
+
+      const apply = (on) => {
+        document.body.classList.toggle('night-vision', !!on);
+        toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        // Redraw the sky chart so canvas colors match the new mode.
+        if (this.lastSkyData) this.renderSkyChart(this.lastSkyData);
+      };
+
+      try {
+        const stored = await window.astronomer.store.get('nightVision');
+        apply(stored === true);
+      } catch (e) {
+        apply(false);
+      }
+
+      toggle.addEventListener('click', () => {
+        const next = !document.body.classList.contains('night-vision');
+        apply(next);
+        window.astronomer.store.set('nightVision', next).catch(err =>
+          console.error('Failed to persist night vision setting:', err)
+        );
+      });
     }
 
     setupSearch() {
@@ -496,6 +532,7 @@
           throw new Error(astroResult?.error || 'No astronomy data');
         }
         const astro = astroResult.data;
+        this.renderSkyChart(astro);
 
         const fmtTime = iso =>
           iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -697,6 +734,151 @@
       const latlng = [lat, lon];
       this.observeMarker.setLatLng(latlng);
       if (pan) this.observeMap.panTo(latlng);
+    }
+
+    renderSkyChart(astro) {
+      const canvas = document.getElementById('sky-chart');
+      if (!canvas || !astro) return;
+      this.lastSkyData = astro;
+
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = Math.min(cx, cy) - 24;
+      const night = document.body.classList.contains('night-vision');
+
+      const colors = night
+        ? {
+            bg: '#120000', ring: '#550000', grid: '#3a0000', cardinal: '#ff8080',
+            label: '#ff6060', outline: '#2a0000'
+          }
+        : {
+            bg: '#07101e', ring: '#3a4a68', grid: '#1e2a3e', cardinal: '#9ab4d6',
+            label: '#cfd8e6', outline: '#0c1728'
+          };
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Horizon disk.
+      ctx.fillStyle = colors.bg;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Altitude rings at 30° and 60° (dashed).
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = colors.grid;
+      ctx.lineWidth = 1;
+      for (const alt of [30, 60]) {
+        const r = radius * (1 - alt / 90);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Cardinal cross.
+      ctx.save();
+      ctx.strokeStyle = colors.grid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy);
+      ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius);
+      ctx.stroke();
+      ctx.restore();
+
+      // Horizon ring.
+      ctx.strokeStyle = colors.ring;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Cardinal labels (N top, E right, S bottom, W left).
+      ctx.fillStyle = colors.cardinal;
+      ctx.font = 'bold 13px -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('N', cx, cy - radius - 12);
+      ctx.fillText('S', cx, cy + radius + 12);
+      ctx.fillText('E', cx + radius + 12, cy);
+      ctx.fillText('W', cx - radius - 12, cy);
+
+      // Altitude/azimuth → canvas coordinates.
+      // Azimuth measured from N (=0), increasing clockwise through E (=90).
+      // N at top, E at right, S at bottom, W at left.
+      const project = (altitudeDeg, azimuthDeg) => {
+        const r = radius * (1 - Math.max(0, altitudeDeg) / 90);
+        const theta = (azimuthDeg - 90) * Math.PI / 180;
+        return { x: cx + r * Math.cos(theta), y: cy + r * Math.sin(theta) };
+      };
+
+      const baseBodies = [
+        { name: 'Sun', color: '#ffd23a', radius: 7, data: astro.sun },
+        { name: 'Moon', color: '#e6e6e6', radius: 6, data: astro.moon },
+        ...astro.planets.map(p => ({
+          name: p.name,
+          color: PLANET_COLORS[p.name] || '#cccccc',
+          radius: 5,
+          data: p
+        }))
+      ];
+
+      const tintForNight = (hex) => {
+        if (!night) return hex;
+        // Map any planet color to a red-tone equivalent preserving brightness.
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        const red = Math.min(255, 80 + lum);
+        return `rgb(${red}, ${Math.round(red * 0.12)}, ${Math.round(red * 0.12)})`;
+      };
+
+      ctx.font = '11px -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+
+      for (const body of baseBodies) {
+        const d = body.data;
+        if (!d || typeof d.altitude !== 'number' || typeof d.azimuth !== 'number') continue;
+        const aboveHorizon = d.altitude > 0;
+        const altForPlot = aboveHorizon ? d.altitude : 0;
+        const { x, y } = project(altForPlot, d.azimuth);
+        const color = tintForNight(body.color);
+
+        ctx.save();
+        ctx.globalAlpha = aboveHorizon ? 1 : 0.35;
+
+        // Dot with outline for contrast.
+        ctx.fillStyle = color;
+        ctx.strokeStyle = colors.outline;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, body.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Moon phase: chord across the disk on the dark side.
+        if (body.name === 'Moon' && typeof astro.moon.phaseAngle === 'number') {
+          const phase = astro.moon.phaseAngle; // 0=new, 180=full
+          const lit = 1 - Math.abs(((phase + 180) % 360) - 180) / 180; // 0..1 illuminated fraction roughly
+          ctx.fillStyle = night ? 'rgba(60, 0, 0, 0.85)' : 'rgba(20, 24, 40, 0.85)';
+          ctx.beginPath();
+          // Simple visual: cover the un-lit portion with a vertical-ish arc.
+          const coverWidth = body.radius * (1 - lit) * 1.6;
+          ctx.ellipse(x, y, coverWidth / 2, body.radius, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Label offset to the right of the dot.
+        ctx.fillStyle = colors.label;
+        ctx.fillText(body.name, x + body.radius + 4, y);
+        ctx.restore();
+      }
     }
 
     async getLocation() {

@@ -562,3 +562,135 @@ select:focus {
   animation: none !important;
   transition: none !important;
 }
+
+/* ========== Night Vision Mode ========== */
+
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.night-vision-toggle,
+.theme-toggle,
+.search-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.night-vision-toggle svg,
+.theme-toggle svg,
+.search-button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.night-vision-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.night-vision-toggle[aria-pressed="true"] {
+  color: #ff3030;
+  background: rgba(255, 0, 0, 0.12);
+}
+
+body.night-vision {
+  --bg-primary: #120000;
+  --bg-secondary: #1f0505;
+  --bg-tertiary: #2a0808;
+  --text-primary: #ff4a4a;
+  --text-secondary: #b23030;
+  --accent-primary: #cc1a1a;
+  --accent-secondary: #ff5a5a;
+  --border-color: #440000;
+  --shadow: 0 4px 6px rgba(80, 0, 0, 0.6);
+}
+
+body.night-vision,
+body.night-vision * {
+  color-scheme: dark;
+}
+
+body.night-vision .tab-button.active {
+  background: #660000;
+  color: #ffdada;
+}
+
+body.night-vision a,
+body.night-vision a:visited {
+  color: #ff7070;
+}
+
+body.night-vision input,
+body.night-vision select,
+body.night-vision textarea {
+  background: #1a0404;
+  color: #ff5050;
+  border-color: #550000;
+}
+
+body.night-vision .btn-primary,
+body.night-vision button.btn-primary {
+  background: #8a0000;
+  color: #ffd0d0;
+}
+
+body.night-vision .btn-secondary,
+body.night-vision button.btn-secondary {
+  background: #2a0808;
+  color: #ff5050;
+  border: 1px solid #550000;
+}
+
+body.night-vision .loading-spinner {
+  color: #ff4040;
+}
+
+body.night-vision .loading-spinner::before {
+  border-color: rgba(120, 0, 0, 0.3);
+  border-top-color: #ff3030;
+}
+
+/* Tint the Leaflet map red — the tile imagery is multi-hue, so desaturate
+   then sepia+hue-rotate lands it in the deep-red range. */
+body.night-vision .observe-map {
+  filter: grayscale(1) sepia(1) hue-rotate(-35deg) saturate(4) brightness(0.55);
+}
+
+body.night-vision .sky-chart {
+  filter: hue-rotate(-10deg) saturate(1.1);
+}
+
+/* ========== Sky Chart ========== */
+
+.sky-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+}
+
+.sky-chart-title {
+  align-self: flex-start;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sky-chart {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: transparent;
+}
