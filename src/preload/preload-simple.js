@@ -44,6 +44,14 @@ contextBridge.exposeInMainWorld('astronomer', {
     export: () => ipcRenderer.invoke('favorites-export')
   },
 
+  astronomy: {
+    compute: (location, date) => ipcRenderer.invoke(
+      'astronomy-compute',
+      location,
+      date instanceof Date ? date.toISOString() : date
+    )
+  },
+
   system: {
     getLocation: () => ipcRenderer.invoke('get-location'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),

@@ -106,13 +106,23 @@ export class ObserveView {
 
     try {
       const now = new Date();
+      const result = await window.astronomer.astronomy.compute(
+        { latitude: this.location.latitude, longitude: this.location.longitude },
+        now
+      );
+
+      if (!result || result.error || !result.data) {
+        throw new Error(result?.error || 'No astronomy data returned');
+      }
+
+      const computed = result.data;
       const data = {
         location: this.location,
         time: now,
-        twilight: this.calculateTwilight(now),
-        moon: await this.calculateMoonData(now),
-        sun: this.calculateSunData(now),
-        planets: this.calculatePlanetsVisibility(now),
+        twilight: this.formatTwilight(computed.twilight),
+        moon: this.formatMoon(computed.moon),
+        sun: this.formatSun(computed.sun),
+        planets: this.formatPlanets(computed.planets),
         iss: await this.getISSPasses()
       };
 
@@ -122,77 +132,49 @@ export class ObserveView {
     }
   }
 
-  calculateTwilight(date) {
-    // Simplified twilight calculation
-    const lat = this.location.latitude;
-    const lon = this.location.longitude;
-    
-    // This is a placeholder - in production, use astronomy-engine
-    const sunset = new Date(date);
-    sunset.setHours(19, 30, 0); // Placeholder time
-    
-    const civilTwilight = new Date(sunset);
-    civilTwilight.setMinutes(sunset.getMinutes() + 30);
-    
-    const nauticalTwilight = new Date(civilTwilight);
-    nauticalTwilight.setMinutes(civilTwilight.getMinutes() + 30);
-    
-    const astronomicalTwilight = new Date(nauticalTwilight);
-    astronomicalTwilight.setMinutes(nauticalTwilight.getMinutes() + 30);
+  formatIsoTime(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
 
+  formatTwilight(t) {
     return {
-      sunset: sunset.toLocaleTimeString(),
-      civil: civilTwilight.toLocaleTimeString(),
-      nautical: nauticalTwilight.toLocaleTimeString(),
-      astronomical: astronomicalTwilight.toLocaleTimeString()
+      sunset: this.formatIsoTime(t.sunset),
+      civil: this.formatIsoTime(t.civil),
+      nautical: this.formatIsoTime(t.nautical),
+      astronomical: this.formatIsoTime(t.astronomical)
     };
   }
 
-  async calculateMoonData(date) {
-    // Simplified moon phase calculation
-    const lunationNumber = 0.0;
-    const phase = ((date.getTime() / 1000 - 947182440) / 2551442.8) % 1;
-    
-    let phaseName = 'New Moon';
-    const illumination = Math.abs(Math.sin(phase * Math.PI)) * 100;
-    
-    if (phase < 0.125) phaseName = 'New Moon';
-    else if (phase < 0.25) phaseName = 'Waxing Crescent';
-    else if (phase < 0.375) phaseName = 'First Quarter';
-    else if (phase < 0.5) phaseName = 'Waxing Gibbous';
-    else if (phase < 0.625) phaseName = 'Full Moon';
-    else if (phase < 0.75) phaseName = 'Waning Gibbous';
-    else if (phase < 0.875) phaseName = 'Last Quarter';
-    else phaseName = 'Waning Crescent';
-
+  formatMoon(m) {
     return {
-      phase: phaseName,
-      illumination: illumination.toFixed(1),
-      rise: '20:45', // Placeholder
-      set: '08:30'   // Placeholder
+      phase: m.phase,
+      illumination: m.illumination.toFixed(1),
+      rise: this.formatIsoTime(m.rise),
+      set: this.formatIsoTime(m.set),
+      magnitude: m.magnitude.toFixed(2)
     };
   }
 
-  calculateSunData(date) {
-    // Simplified sun data
+  formatSun(s) {
     return {
-      rise: '06:30', // Placeholder
-      set: '19:30',  // Placeholder
-      altitude: 45   // Placeholder noon altitude
+      rise: this.formatIsoTime(s.rise),
+      set: this.formatIsoTime(s.set),
+      altitude: s.altitude.toFixed(1),
+      azimuth: s.azimuth.toFixed(1)
     };
   }
 
-  calculatePlanetsVisibility(date) {
-    // Simplified planet visibility
-    const planets = [
-      { name: 'Mercury', visible: false, rise: 'N/A', set: 'N/A' },
-      { name: 'Venus', visible: true, rise: '05:00', set: '17:30' },
-      { name: 'Mars', visible: true, rise: '22:00', set: '10:00' },
-      { name: 'Jupiter', visible: true, rise: '20:00', set: '06:00' },
-      { name: 'Saturn', visible: true, rise: '18:00', set: '04:00' }
-    ];
-    
-    return planets;
+  formatPlanets(planets) {
+    return planets.map(p => ({
+      name: p.name,
+      visible: p.visible,
+      rise: this.formatIsoTime(p.rise),
+      set: this.formatIsoTime(p.set),
+      altitude: p.altitude.toFixed(1),
+      azimuth: p.azimuth.toFixed(1),
+      magnitude: p.magnitude.toFixed(2)
+    }));
   }
 
   async getISSPasses() {
@@ -263,17 +245,20 @@ export class ObserveView {
           <h3>Sun</h3>
           <div class="sun-data">
             <p>Rise: ${data.sun.rise} | Set: ${data.sun.set}</p>
-            <p>Max Altitude: ${data.sun.altitude}°</p>
+            <p>Current Altitude: ${data.sun.altitude}° | Azimuth: ${data.sun.azimuth}°</p>
           </div>
         </section>
 
         <section class="obs-section">
           <h3>Visible Planets Tonight</h3>
           <div class="planets-list">
-            ${data.planets.filter(p => p.visible).map(planet => `
+            ${data.planets.filter(p => p.visible).length === 0
+              ? '<p>No planets currently above the horizon.</p>'
+              : data.planets.filter(p => p.visible).map(planet => `
               <div class="planet-item">
                 <h4>${planet.name}</h4>
                 <p>Rise: ${planet.rise} | Set: ${planet.set}</p>
+                <p>Altitude: ${planet.altitude}° | Azimuth: ${planet.azimuth}° | Mag: ${planet.magnitude}</p>
               </div>
             `).join('')}
           </div>

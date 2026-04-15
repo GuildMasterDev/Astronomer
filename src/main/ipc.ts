@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getEndpointConfig } from './endpoints';
 import { rateLimiter } from './rate-limiter';
+import { computeObservation } from './astronomy';
 
 // API fetch handler
 ipcMain.handle('api-fetch', async (event, endpointId: string, params: any) => {
@@ -167,6 +168,17 @@ ipcMain.handle('open-external', async (event, url: string) => {
     console.error('Invalid URL:', url);
   }
   return false;
+});
+
+// Astronomy compute handler
+ipcMain.handle('astronomy-compute', async (_event, location: { latitude: number; longitude: number }, isoDate?: string) => {
+  try {
+    const date = isoDate ? new Date(isoDate) : new Date();
+    return { data: computeObservation(location, date), error: null };
+  } catch (error: any) {
+    console.error('astronomy-compute error:', error);
+    return { data: null, error: error?.message || 'Astronomy compute failed' };
+  }
 });
 
 // Navigation IPC
