@@ -30,6 +30,7 @@
       this.setupTheme();
       this.setupNightVision();
       this.setupSearch();
+      this.setupActionDelegation();
       this.showTab('explore');
       await this.loadAPOD();
     }
@@ -139,6 +140,66 @@
       });
     }
 
+    setupActionDelegation() {
+      // Single delegated click handler — CSP blocks inline onclick=, so every
+      // button rendered via innerHTML uses data-action + data-* args that we
+      // dispatch here.
+      document.addEventListener('click', (event) => {
+        const el = event.target.closest('[data-action]');
+        if (!el) return;
+        const action = el.dataset.action;
+        const payload = el.dataset.payload ? this.safeParseJSON(el.dataset.payload) : null;
+
+        switch (action) {
+          case 'retry-apod':
+            this.loadAPOD();
+            break;
+          case 'show-image':
+            event.preventDefault();
+            this.showImageModal(el.dataset.url, el.dataset.title || '');
+            break;
+          case 'toggle-favorite':
+            event.preventDefault();
+            event.stopPropagation();
+            this.toggleFavorite(el.dataset.favType, el.dataset.favId, payload);
+            break;
+          case 'remove-favorite':
+            event.preventDefault();
+            this.removeFavorite(el.dataset.favId);
+            break;
+          case 'track-tonight':
+            this.trackTonight(el.dataset.body);
+            break;
+          case 'birthday-prev':
+            this.previousSlide();
+            break;
+          case 'birthday-next':
+            this.nextSlide();
+            break;
+          case 'open-external':
+            event.preventDefault();
+            this.openExternal(el.dataset.url);
+            break;
+        }
+      });
+    }
+
+    safeParseJSON(str) {
+      try { return JSON.parse(str); } catch (e) { return null; }
+    }
+
+    attr(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    payloadAttr(obj) {
+      return this.attr(JSON.stringify(obj));
+    }
+
     setupSearch() {
       // NASA Images search
       const searchBtn = document.getElementById('nasa-search-btn');
@@ -182,7 +243,7 @@
           <div class="error-message">
             <h3>Failed to load</h3>
             <p>${error.message}</p>
-            <button class="btn btn-primary" onclick="window.astronomerApp.loadAPOD()">Retry</button>
+            <button class="btn btn-primary" data-action="retry-apod">Retry</button>
           </div>
         `;
       }
@@ -198,15 +259,16 @@
         <div class="apod-item">
           ${data.media_type === 'video' ? 
             `<iframe class="apod-video" src="${data.url}" frameborder="0" allowfullscreen></iframe>` :
-            `<img class="apod-image" src="${data.url}" alt="${data.title}" onclick="window.astronomerApp.showImageModal('${data.hdurl || data.url}', '${data.title}')" style="cursor: pointer;" />`
+            `<img class="apod-image" src="${this.attr(data.url)}" alt="${this.attr(data.title)}" data-action="show-image" data-url="${this.attr(data.hdurl || data.url)}" data-title="${this.attr(data.title)}" style="cursor: pointer;" />`
           }
           <div class="apod-info">
             <h3 class="apod-title">${data.title}</h3>
             <p class="apod-date">${this.formatDate(data.date)}</p>
             <p class="apod-explanation">${data.explanation}</p>
             ${data.copyright ? `<p class="apod-copyright">© ${data.copyright}</p>` : ''}
-            <button class="favorite-button ${isFavorited ? 'favorited' : ''}" 
-                    onclick="window.astronomerApp.toggleFavorite('apod', '${data.date}', ${JSON.stringify(data).replace(/"/g, '&quot;')})">
+            <button class="favorite-button ${isFavorited ? 'favorited' : ''}"
+                    data-action="toggle-favorite" data-fav-type="apod" data-fav-id="${this.attr(data.date)}"
+                    data-payload="${this.payloadAttr(data)}">
               ${isFavorited ? '★ Favorited' : '☆ Add to Favorites'}
             </button>
           </div>
@@ -309,14 +371,15 @@
         
         return `
           <div class="image-card">
-            <img src="${imageUrl}" alt="${data.title}" 
-                 onclick="window.astronomerApp.showImageModal('${imageUrl}', '${data.title.replace(/'/g, "\\'")}')" 
+            <img src="${this.attr(imageUrl)}" alt="${this.attr(data.title)}"
+                 data-action="show-image" data-url="${this.attr(imageUrl)}" data-title="${this.attr(data.title)}"
                  style="cursor: pointer;" />
             <div class="image-card-body">
               <h4 class="image-card-title">${data.title}</h4>
               <p class="image-card-description">${this.truncateText(data.description || '', 100)}</p>
-              <button class="favorite-button ${isFavorited ? 'favorited' : ''}" 
-                      onclick="window.astronomerApp.toggleFavorite('image', '${data.nasa_id}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+              <button class="favorite-button ${isFavorited ? 'favorited' : ''}"
+                      data-action="toggle-favorite" data-fav-type="image" data-fav-id="${this.attr(data.nasa_id)}"
+                      data-payload="${this.payloadAttr(item)}">
                 ${isFavorited ? '★' : '☆'}
               </button>
             </div>
@@ -363,8 +426,8 @@
         
         return `
           <div class="image-card">
-            <img src="${imageUrl}" alt="Earth from EPIC" 
-                 onclick="window.astronomerApp.showImageModal('${imageUrl}', 'Earth on ${img.date}')" 
+            <img src="${this.attr(imageUrl)}" alt="Earth from EPIC"
+                 data-action="show-image" data-url="${this.attr(imageUrl)}" data-title="Earth on ${this.attr(img.date)}"
                  style="cursor: pointer;" />
             <div class="image-card-body">
               <h4>Earth on ${this.formatDate(img.date)}</h4>
@@ -463,7 +526,7 @@
 
       const slidesHtml = slides.map((s, i) => {
         const media = s.mediaType === 'video'
-          ? `<div class="birthday-video"><a href="#" onclick="window.astronomerApp.openExternal('${safe(s.url)}');return false;">Watch on NASA APOD →</a></div>`
+          ? `<div class="birthday-video"><a href="#" data-action="open-external" data-url="${this.attr(s.url)}">Watch on NASA APOD →</a></div>`
           : `<img src="${safe(s.hdurl || s.url)}" alt="${safe(s.title)}" />`;
         return `
           <div class="birthday-slide" data-index="${i}">
@@ -484,9 +547,9 @@
         </div>
         ${slides.length > 1 ? `
           <div class="birthday-navigation">
-            <button class="btn btn-secondary" onclick="window.astronomerApp.previousSlide()">←</button>
+            <button class="btn btn-secondary" data-action="birthday-prev">←</button>
             <span id="slide-indicator">1 / ${slides.length}</span>
-            <button class="btn btn-secondary" onclick="window.astronomerApp.nextSlide()">→</button>
+            <button class="btn btn-secondary" data-action="birthday-next">→</button>
           </div>
         ` : ''}
       `;
@@ -1066,9 +1129,6 @@
           note: 'First Earth-size habitable-zone planet TESS found, orbiting a cool M-dwarf.' }
       ];
 
-      const objectJson = (obj) =>
-        JSON.stringify(obj).replace(/"/g, '&quot;');
-
       const solarCards = solarSystem.map(obj => {
         const isFavorited = this.favorites.some(f => f.id === obj.name);
         const km = distanceFor(obj);
@@ -1078,7 +1138,7 @@
               ? '<p>You are here 🙂</p>'
               : `<p>Current distance from Earth: ${this.formatDistance(Math.round(km))}</p>`);
         const trackBtn = obj.trackable
-          ? `<button class="btn btn-secondary track-btn" onclick="window.astronomerApp.trackTonight('${obj.name}')">Track Tonight</button>`
+          ? `<button class="btn btn-secondary track-btn" data-action="track-tonight" data-body="${this.attr(obj.name)}">Track Tonight</button>`
           : '';
         const favArg = { name: obj.name, type: obj.type, diameter: obj.diameter, icon: obj.icon, distanceKm: km };
         return `
@@ -1092,7 +1152,8 @@
               <div class="object-card-actions">
                 ${trackBtn}
                 <button class="favorite-button ${isFavorited ? 'favorited' : ''}"
-                        onclick="window.astronomerApp.toggleFavorite('object', '${obj.name}', ${objectJson(favArg)})">
+                        data-action="toggle-favorite" data-fav-type="object" data-fav-id="${this.attr(obj.name)}"
+                        data-payload="${this.payloadAttr(favArg)}">
                   ${isFavorited ? '★ Favorited' : '☆ Favorite'}
                 </button>
               </div>
@@ -1115,7 +1176,8 @@
               <p>Discovered ${p.discovered}</p>
               <p class="exo-note">${p.note}</p>
               <button class="favorite-button ${isFavorited ? 'favorited' : ''}"
-                      onclick="window.astronomerApp.toggleFavorite('object', '${id}', ${objectJson(favArg)})">
+                      data-action="toggle-favorite" data-fav-type="object" data-fav-id="${this.attr(id)}"
+                      data-payload="${this.payloadAttr(favArg)}">
                 ${isFavorited ? '★ Favorited' : '☆ Favorite'}
               </button>
             </div>
@@ -1188,8 +1250,8 @@
             <div class="favorite-card-body">
               <h4>${title}</h4>
               <p class="favorite-type">${fav.type}</p>
-              <button class="btn btn-secondary" 
-                      onclick="window.astronomerApp.removeFavorite('${fav.id}')">
+              <button class="btn btn-secondary"
+                      data-action="remove-favorite" data-fav-id="${this.attr(fav.id)}">
                 Remove
               </button>
             </div>
