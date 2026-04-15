@@ -56,8 +56,11 @@ body {
 
 .tab-navigation {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 0;
+  /* Clear macOS hiddenInset traffic lights so the first tab isn't occluded. */
+  padding-left: 78px;
   -webkit-app-region: no-drag;
 }
 
@@ -68,11 +71,17 @@ body {
   padding: 0.5rem 1rem;
   border-radius: var(--radius);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  line-height: 1;
   gap: 0.5rem;
   transition: var(--transition);
   -webkit-app-region: no-drag;
+}
+
+.tab-button span {
+  line-height: 1;
 }
 
 .tab-button:hover {
@@ -310,17 +319,34 @@ select:focus {
 }
 
 .loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 2rem 1rem;
   color: var(--text-secondary);
-  animation: pulse 1.5s ease-in-out infinite;
+  font-size: 0.95rem;
+  text-align: center;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
+.loading-spinner::before {
+  content: "";
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--accent-primary, #4a9eff);
+  animation: loading-spinner-rotate 0.9s linear infinite;
+}
+
+@keyframes loading-spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+[data-reduce-motion="true"] .loading-spinner::before {
+  animation: none;
+  border-top-color: rgba(255, 255, 255, 0.35);
 }
 
 .nasa-images-grid,
