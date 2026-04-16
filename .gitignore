@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-electron/
+dist-web/
+src/web/public/
 .env
 .env.local
 *.log
