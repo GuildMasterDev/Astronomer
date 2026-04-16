@@ -1,8 +1,6 @@
 import { net } from 'electron';
 import * as Astronomy from 'astronomy-engine';
 
-// satellite.js v5 has no bundled .d.ts — treat as `any`.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const satellite: any = require('satellite.js');
 
 interface LatLon {
