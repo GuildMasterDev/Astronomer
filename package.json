@@ -20,23 +20,23 @@
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",
-    "dayjs": "^1.11.10",
-    "electron-store": "^8.1.0",
+    "dayjs": "^1.11.20",
+    "electron-store": "^8.2.0",
     "leaflet": "^1.9.4",
-    "satellite.js": "^5.0.0"
+    "satellite.js": "^7.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.1",
-    "@types/node": "^20.10.5",
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^20.19.39",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "eslint": "^8.56.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "node-fetch": "^3.3.2",
-    "prettier": "^3.1.1",
+    "prettier": "^3.8.3",
     "typescript": "^5.3.3",
     "vite": "^5.0.10",
     "vitest": "^1.1.0"
