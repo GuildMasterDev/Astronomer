@@ -1,10 +1,12 @@
 # 🚀 Astronomer
 
-A secure, React-free Electron desktop application for exploring astronomy data and planning observations. Built with vanilla JavaScript, HTML, and CSS.
+A secure, React-free Electron desktop application for exploring astronomy data and planning observations. Built with vanilla JavaScript, HTML, and CSS — plus a static browser build that runs the same UI without Electron.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Electron](https://img.shields.io/badge/Electron-28.0.0-47848F?logo=electron)
-![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Windows%20|%20Linux-lightgrey)
+![Electron](https://img.shields.io/badge/Electron-41-47848F?logo=electron)
+![Platform](https://img.shields.io/badge/Platform-macOS%20|%20Windows%20|%20Linux%20|%20Web-lightgrey)
+
+**Live demo:** <https://guildmasterdev.github.io/Astronomer/>
 
 ![Astronomer Observe tab — interactive map and all-sky chart](docs/observe-tab.png)
 
@@ -46,6 +48,17 @@ A secure, React-free Electron desktop application for exploring astronomy data a
 - Location defaults
 - Performance modes and caching
 
+## 🌐 Web demo
+
+The live demo at <https://guildmasterdev.github.io/Astronomer/> runs the same UI directly in the browser — no download required. A few notes:
+
+- It defaults to NASA's shared `DEMO_KEY`, which has tight hourly rate limits. A one-minute signup at <https://api.nasa.gov/> yields a free personal key; drop it into **Settings → NASA API Key** and the demo-mode banner disappears.
+- Favorites and settings persist to `localStorage`, so they stay on the device you used.
+- Everything astronomical — twilight, moon phase, planet positions, ISS passes — runs client-side via `astronomy-engine` and `satellite.js`.
+- Location can come from the browser's Geolocation API (you'll be prompted) or from a manual entry.
+
+The desktop build remains the better option for heavy usage (no CORS constraints, persistent encrypted store, native dialogs).
+
 ## 🔒 Security Features
 
 - **Context Isolation**: Enabled by default
@@ -58,9 +71,9 @@ A secure, React-free Electron desktop application for exploring astronomy data a
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- NASA API Key (optional, uses DEMO_KEY by default)
+- Node.js 20+
+- npm
+- NASA API Key (optional, uses `DEMO_KEY` by default — configure in the in-app Settings)
 
 ### Installation
 
@@ -72,29 +85,30 @@ cd Astronomer
 # Install dependencies
 npm install
 
-# Run in development mode
+# Run the desktop app
 npm run dev
 ```
 
 ### Get Your NASA API Key
 
-1. Visit [https://api.nasa.gov/](https://api.nasa.gov/)
+1. Visit [api.nasa.gov](https://api.nasa.gov/)
 2. Register for a free API key
-3. Add to Settings or `.env` file
+3. Add it in **Settings → NASA API Key** (desktop or web)
 
 ## 📦 Building
 
 ```bash
-# Build for production
+# Desktop production build (TypeScript + Vite renderer)
 npm run build
 
-# Package for current platform
-npm run package
+# Package desktop app for a specific platform
+npm run pack:mac
+npm run pack:win
+npm run pack:linux
 
-# Build for specific platforms
-npm run package:mac     # macOS
-npm run package:win     # Windows
-npm run package:linux   # Linux
+# Static web build (output: dist-web/)
+npm run build:web
+npm run preview:web   # local preview
 ```
 
 ## 🎮 Keyboard Shortcuts
@@ -114,49 +128,60 @@ npm run package:linux   # Linux
 Astronomer/
 ├── src/
 │   ├── main/           # Electron main process
-│   │   ├── main.ts     # App entry point
+│   │   ├── main.ts     # App entry point, BrowserWindow + CSP
 │   │   ├── menu.ts     # Application menu
-│   │   ├── store.ts    # Persistent storage
+│   │   ├── store.ts    # Persistent storage (electron-store)
 │   │   ├── ipc.ts      # IPC handlers
-│   │   ├── endpoints.ts # API configuration
-│   │   └── rate-limiter.ts # Request throttling
-│   ├── preload/        # Secure bridge
-│   │   └── preload-simple.js # Context bridge API
-│   └── renderer/       # UI (vanilla JS)
-│       ├── index.html  # Main window
-│       ├── styles.css  # Global styles
-│       └── app-complete.js # App logic
-├── dist/               # Compiled output
-└── build/              # Packaged applications
+│   │   ├── endpoints.ts # API whitelist
+│   │   ├── astronomy.ts # Sun/moon/planet compute
+│   │   ├── iss.ts      # TLE + SGP4 pass prediction
+│   │   └── rate-limiter.ts
+│   ├── preload/        # Secure context bridge
+│   │   └── preload-simple.js
+│   ├── renderer/       # UI (vanilla JS, shared by desktop + web)
+│   │   ├── index.html
+│   │   ├── styles.css
+│   │   ├── app-complete.js   # application logic
+│   │   └── public/vendor/    # bundled Leaflet
+│   └── web/            # Static browser build
+│       ├── index.html  # web shell with demo banner
+│       ├── main.js     # window.astronomer shim + loader
+│       └── prepare.mjs # stages shared renderer assets
+├── dist/               # Compiled desktop output
+├── dist-web/           # Compiled web output
+└── dist-electron/      # Packaged installers
 ```
 
 ## 🔧 Development
 
-### Commands
-
 ```bash
-npm run dev       # Start development server
-npm test          # Run unit tests
-npm run lint      # Lint code
-npm run typecheck # Type checking
+npm run dev        # Compiles TS then launches Electron
+npm run dev:vite   # Vite-hosted renderer (for live reload)
+npm run build:web  # Static web build
+npm test           # vitest
+npm run test:e2e   # playwright
+npm run lint       # ESLint 9 (flat config)
+npm run typecheck  # tsc --noEmit
 ```
 
 ### API Endpoints
 
-The app uses these NASA and astronomy APIs:
+The app uses these NASA and astronomy APIs (whitelisted in both the desktop CSP and the web fetch adapter):
+
 - NASA APOD API
 - NASA Image and Video Library
 - NASA EPIC API
 - JPL Horizons API
-- ISS Location API
+- ISS Location API (wheretheiss.at)
+- ISS TLE (tle.ivanstanojevic.me)
 - NASA Exoplanet Archive
 
 ## 🔐 Privacy & Security
 
 - **No tracking**: Zero telemetry by default
-- **Local storage**: All data stored locally
+- **Local storage**: All data stored locally (`electron-store` on desktop, `localStorage` in the web demo)
 - **No accounts**: No user accounts or cloud sync
-- **Secure APIs**: All external calls go through validated whitelist
+- **Whitelisted APIs**: Desktop builds route every external call through a validated allow-list; CSP blocks everything else
 - **Open source**: Full code transparency
 
 ## 🤝 Contributing
@@ -171,23 +196,15 @@ Contributions are welcome! Please read our contributing guidelines before submit
 
 ## 📝 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Credits
 
 - NASA APIs for providing amazing space data
-- Astronomy Engine for celestial calculations
+- `astronomy-engine` for celestial calculations
+- `satellite.js` for SGP4/SDP4 propagation
 - Electron team for the framework
 - All contributors and testers
-
-## 🐛 Known Issues & Recent Fixes
-
-### Fixed
-- ✅ HTTP 429 rate limiting now handled with exponential backoff
-- ✅ Geolocation permissions properly configured
-- ✅ Module loading issues resolved
-- ✅ Moon rise/set, sun/twilight, and planet positions now use `astronomy-engine` (real topocentric calculations)
-- ✅ ISS pass predictions use live TLE data + SGP4 propagation via `satellite.js`
 
 ## 📮 Support
 

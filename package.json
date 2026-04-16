@@ -1,6 +1,6 @@
 {
   "name": "astronomer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A desktop astronomy app for exploring space data and planning observations",
   "main": "dist/main/main.js",
   "author": "Astronomer Team",
